@@ -2,6 +2,7 @@
 require('dotenv').config({ path: require('path').join(process.cwd(), '.env') });
 const express = require('express');
 const os = require('os');
+const QRCode = require('qrcode');
 const { WebSocketServer } = require('ws');
 const { createServer } = require('http');
 const { Client } = require('ssh2');
@@ -112,18 +113,24 @@ server.listen(PORT, () => {
     }
   }
   const ip = localIPs[0] || 'localhost';
+  const serverUrl = `http://${ip}:${PORT}`;
+  const payload = JSON.stringify({ url: serverUrl, token: AUTH_TOKEN });
+
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║  r1-ssh-terminal is running                          ║
 ╠══════════════════════════════════════════════════════╣
-║  Enter these in the R1 app:                          ║
-║                                                      ║
-║  Server URL  :  http://${ip}:${PORT}${' '.repeat(Math.max(0, 26 - ip.length - String(PORT).length))}║
-║  Auth token  :  ${AUTH_TOKEN.slice(0, 32)}${' '.repeat(Math.max(0, 34 - AUTH_TOKEN.slice(0,32).length))}║
+║  Scan the QR code below with your R1, or enter:      ║
+║  URL  : ${serverUrl.padEnd(44)}║
+║  Token: ${AUTH_TOKEN.slice(0, 44).padEnd(44)}║
 ╠══════════════════════════════════════════════════════╣
 ║  To expose over internet:                            ║
 ║    npx cloudflared tunnel --url http://localhost:${PORT} ║
 ╚══════════════════════════════════════════════════════╝
 `);
+
+  QRCode.toString(payload, { type: 'terminal', small: true }, (err, qr) => {
+    if (!err) console.log(qr);
+  });
 });
 

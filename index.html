@@ -68,6 +68,25 @@ html, body {
 }
 #btn-onboarding-continue:active { background: #2a5a8c; }
 
+/* Scan screen */
+#scan-screen {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  background: #000; position: relative; overflow: hidden;
+}
+#scan-video {
+  width: 240px; height: 220px; object-fit: cover; display: block;
+}
+#scan-hint {
+  font-size: 9px; color: #aaa; padding: 5px 0 3px; text-align: center;
+}
+#scan-cancel {
+  width: 90%; padding: 5px; background: #222; border: 1px solid #444;
+  color: #aaa; font-size: 10px; border-radius: 4px; cursor: pointer;
+}
+#scan-canvas { display: none; }
+#scan-status { font-size: 9px; color: #7ab8e8; min-height: 13px; padding: 2px 0; }
+
 /* Setup screen */
 #setup-screen {
   flex: 1; display: flex; flex-direction: column;
@@ -180,11 +199,21 @@ html, body {
   <button id="btn-onboarding-continue" onclick="finishOnboarding()">Continue</button>
 </div>
 
+<!-- QR scan screen -->
+<div id="scan-screen" style="display:none;">
+  <video id="scan-video" autoplay playsinline muted></video>
+  <canvas id="scan-canvas"></canvas>
+  <div id="scan-status"></div>
+  <div id="scan-hint">Point at the QR code shown in your terminal</div>
+  <button id="scan-cancel" onclick="stopScan()">Cancel</button>
+</div>
+
 <!-- Setup screen (first run) -->
 <div id="setup-screen" style="display:none;">
   <h2>Setup</h2>
-  <p>Enter your backend URL and auth token. Run the backend server first.</p>
-  <input class="setup-input" id="inp-backend" type="url" placeholder="https://your-server.com:3000" autocomplete="off" spellcheck="false">
+  <button id="btn-scan-qr" onclick="startScan()" style="width:100%;padding:7px;background:#1a3a5c;border:1px solid #2a5a8c;color:#7ab8e8;font-size:11px;border-radius:4px;cursor:pointer;">📷 Scan QR Code</button>
+  <p style="font-size:9px;color:#555;margin:2px 0;">— or enter manually —</p>
+  <input class="setup-input" id="inp-backend" type="url" placeholder="http://192.168.x.x:3000" autocomplete="off" spellcheck="false">
   <input class="setup-input" id="inp-token" type="text" placeholder="Auth token" autocomplete="off" spellcheck="false">
   <button id="btn-setup-save" onclick="saveSetup()">Save</button>
 </div>
@@ -238,6 +267,7 @@ html, body {
 
 </div><!-- #app -->
 
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script>
@@ -261,6 +291,7 @@ const statusEl     = document.getElementById('status');
 const btnAction    = document.getElementById('btn-action');
 const btnKbd       = document.getElementById('btn-kbd');
 const onboardScr   = document.getElementById('onboarding-screen');
+const scanScr      = document.getElementById('scan-screen');
 const setupScr     = document.getElementById('setup-screen');
 const connectScr   = document.getElementById('connect-screen');
 const termWrap     = document.getElementById('terminal-wrap');
@@ -271,6 +302,7 @@ function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls 
 
 function hideAll() {
   onboardScr.style.display = 'none';
+  scanScr.style.display    = 'none';
   setupScr.style.display   = 'none';
   connectScr.style.display = 'none';
   termWrap.style.display   = 'none';
@@ -289,6 +321,64 @@ function showOnboarding() {
 
 function finishOnboarding() {
   storeSet('r1term_onboarded', '1');
+  showSetup();
+}
+
+// ── QR scan ───────────────────────────────────────────────────────────────────
+let scanStream = null, scanActive = false;
+
+async function startScan() {
+  hideAll();
+  scanScr.style.display = 'flex';
+  btnAction.textContent = '—';
+  setStatus('Scanning…');
+  const video = document.getElementById('scan-video');
+  const scanStatus = document.getElementById('scan-status');
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = scanStream;
+    await video.play();
+    scanActive = true;
+    scanStatus.textContent = 'Searching…';
+    requestAnimationFrame(scanFrame);
+  } catch(e) {
+    scanStatus.textContent = 'Camera unavailable';
+    setTimeout(showSetup, 1500);
+  }
+}
+
+function scanFrame() {
+  if (!scanActive) return;
+  const video = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  const scanStatus = document.getElementById('scan-status');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (code) {
+      try {
+        const data = JSON.parse(code.data);
+        if (data.url && data.token) {
+          storeSet('r1term_backend', data.url);
+          storeSet('r1term_token', data.token);
+          scanActive = false;
+          if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+          showConnect();
+          return;
+        }
+      } catch {}
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+
+function stopScan() {
+  scanActive = false;
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   showSetup();
 }
 
