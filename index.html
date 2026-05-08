@@ -569,10 +569,18 @@ async function setLandscape(on) {
 })();
 
 // ── Init ───────────────────────────────────────────────────────────────────────
-(function init() {
-  const backend = storeLoad('r1term_backend');
-  const token   = storeLoad('r1term_token');
-  if (backend && token) showConnect();
+(async function init() {
+  const keys = ['r1term_backend', 'r1term_token', 'r1term_last_host', 'r1term_last_user', 'r1term_last_port'];
+  for (const k of keys) {
+    if (_mem[k]) continue;
+    try { const v = localStorage.getItem(k); if (v) { _mem[k] = v; continue; } } catch {}
+    try {
+      const r = window.creationStorage.plain.getItem(k);
+      const v = (r && typeof r.then === 'function') ? await r : r;
+      if (v) _mem[k] = v;
+    } catch {}
+  }
+  if (_mem['r1term_backend'] && _mem['r1term_token']) showConnect();
   else showSetup();
 })();
 </script>
