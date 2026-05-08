@@ -413,8 +413,7 @@ function showConnect() {
 }
 
 async function handleAction() {
-  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-  else if (await storeGet('r1term_backend') && await storeGet('r1term_token')) showConnect();
+  if (ws && ws.readyState === WebSocket.OPEN) { ws.close(); showConnect(); }
   else showSetup();
 }
 
@@ -475,7 +474,7 @@ function resizeTerm() {
 async function doConnect() {
   const backendUrl = await storeGet('r1term_backend');
   const token      = await storeGet('r1term_token');
-  if (!backendUrl || !token) { showSetup(); return; }
+  if (!backendUrl || !token) { setStatus('no backend set', 'error'); setTimeout(showSetup, 800); return; }
 
   const host = document.getElementById('inp-host').value.trim();
   const user = document.getElementById('inp-user').value.trim() || 'root';
