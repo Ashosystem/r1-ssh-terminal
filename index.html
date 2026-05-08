@@ -344,6 +344,12 @@ function showConnect() {
   connectScr.style.display = 'flex';
   btnAction.textContent    = '⚙';
   setStatus('ready');
+  const lh = storeLoad('r1term_last_host');
+  const lu = storeLoad('r1term_last_user');
+  const lp = storeLoad('r1term_last_port');
+  if (lh) document.getElementById('inp-host').value = lh;
+  if (lu) document.getElementById('inp-user').value = lu;
+  if (lp) document.getElementById('inp-port').value = lp;
 }
 
 // ── Terminal screen ────────────────────────────────────────────────────────────
@@ -425,6 +431,9 @@ function doConnect() {
       setStatus('opening SSH…');
       ws.send(JSON.stringify({ type: 'connect', host, port, user, ...(pass ? { password: pass } : {}) }));
     } else if (pkt.type === 'ready') {
+      storeSave('r1term_last_host', host);
+      storeSave('r1term_last_user', user);
+      storeSave('r1term_last_port', String(port));
       initTerm(); showTerminal();
       setStatus('● ' + user + '@' + host, 'connected');
     } else if (pkt.type === 'data') {
@@ -456,13 +465,20 @@ document.querySelectorAll('.nk[data-seq]').forEach(btn =>
 
 const pttBtn = document.getElementById('ptt');
 let pttActive = false;
+let pttLongPress = false;
 pttBtn.addEventListener('click', () => {
+  if (pttLongPress) { pttLongPress = false; return; }
+  if (termWrap.style.display === 'block') {
+    sendToTerm('\r');
+    return;
+  }
   pttActive = !pttActive;
   pttBtn.classList.toggle('active', pttActive);
   pttBtn.textContent = pttActive ? '●REC' : 'PTT';
   try { CreationVoiceHandler.postMessage(pttActive ? 'start' : 'stop'); } catch {}
 });
 window.addEventListener('longPressStart', () => {
+  pttLongPress = true;
   if (!pttActive) { pttActive = true; pttBtn.classList.add('active'); pttBtn.textContent = '●REC'; try { CreationVoiceHandler.postMessage('start'); } catch {} }
 });
 window.addEventListener('longPressEnd', () => {
