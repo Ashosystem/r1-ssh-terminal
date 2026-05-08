@@ -27,11 +27,9 @@ A cloudflared tunnel starts automatically and a QR code prints in the terminal. 
 
 ### 2. Install the Creation on your R1
 
-Use [boondit.site/r1-generator](https://boondit.site/r1-generator) to install this URL as a Creation:
+Download and install the Creation directly from:
 
-```
-https://ashosystem.github.io/r1-ssh-terminal/
-```
+**[https://creations.boondit.site/63-r1-ssh-terminal](https://creations.boondit.site/63-r1-ssh-terminal)**
 
 ### 3. First launch — scan the QR
 
