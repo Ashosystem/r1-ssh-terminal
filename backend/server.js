@@ -1,5 +1,7 @@
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+#!/usr/bin/env node
+require('dotenv').config({ path: require('path').join(process.cwd(), '.env') });
 const express = require('express');
+const os = require('os');
 const { WebSocketServer } = require('ws');
 const { createServer } = require('http');
 const { Client } = require('ssh2');
@@ -13,24 +15,35 @@ const PORT = parseInt(process.env.PORT) || 3000;
 let AUTH_TOKEN = process.env.AUTH_TOKEN;
 if (!AUTH_TOKEN) {
   AUTH_TOKEN = crypto.randomBytes(16).toString('hex');
-  const envPath = path.join(__dirname, '.env');
+  const envPath = path.join(process.cwd(), '.env');
   fs.appendFileSync(envPath, `\nAUTH_TOKEN=${AUTH_TOKEN}\n`);
-  console.log('\n⚠️  No AUTH_TOKEN set — generated one and saved to .env');
 }
 
 const SSH_KEY_PATH = process.env.SSH_KEY_PATH;
 
-console.log(`
-╔══════════════════════════════════════════════════════════════╗
-║  r1-ssh-terminal backend                                     ║
-╠══════════════════════════════════════════════════════════════╣
-║  Port        : ${PORT}
-║  Auth token  : ${AUTH_TOKEN}
-╠══════════════════════════════════════════════════════════════╣
-║  Expose publicly with:                                       ║
-║    npx cloudflared tunnel --url http://localhost:${PORT}
-╚══════════════════════════════════════════════════════════════╝
+server.listen(PORT, () => {
+  const ifaces = os.networkInterfaces();
+  const localIPs = [];
+  for (const iface of Object.values(ifaces)) {
+    for (const addr of iface) {
+      if (addr.family === 'IPv4' && !addr.internal) localIPs.push(addr.address);
+    }
+  }
+  const ip = localIPs[0] || 'localhost';
+  console.log(`
+╔══════════════════════════════════════════════════════╗
+║  r1-ssh-terminal is running                          ║
+╠══════════════════════════════════════════════════════╣
+║  Enter these in the R1 app:                          ║
+║                                                      ║
+║  Server URL  :  http://${ip}:${PORT}${' '.repeat(Math.max(0, 26 - ip.length - String(PORT).length))}║
+║  Auth token  :  ${AUTH_TOKEN.slice(0, 32)}${' '.repeat(Math.max(0, 34 - AUTH_TOKEN.slice(0,32).length))}║
+╠══════════════════════════════════════════════════════╣
+║  To expose over internet:                            ║
+║    npx cloudflared tunnel --url http://localhost:${PORT} ║
+╚══════════════════════════════════════════════════════╝
 `);
+});
 
 const app = express();
 const server = createServer(app);
@@ -114,4 +127,3 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-server.listen(PORT, () => console.log(`Listening on port ${PORT}`));
