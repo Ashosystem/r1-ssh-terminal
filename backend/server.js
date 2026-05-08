@@ -21,30 +21,6 @@ if (!AUTH_TOKEN) {
 
 const SSH_KEY_PATH = process.env.SSH_KEY_PATH;
 
-server.listen(PORT, () => {
-  const ifaces = os.networkInterfaces();
-  const localIPs = [];
-  for (const iface of Object.values(ifaces)) {
-    for (const addr of iface) {
-      if (addr.family === 'IPv4' && !addr.internal) localIPs.push(addr.address);
-    }
-  }
-  const ip = localIPs[0] || 'localhost';
-  console.log(`
-╔══════════════════════════════════════════════════════╗
-║  r1-ssh-terminal is running                          ║
-╠══════════════════════════════════════════════════════╣
-║  Enter these in the R1 app:                          ║
-║                                                      ║
-║  Server URL  :  http://${ip}:${PORT}${' '.repeat(Math.max(0, 26 - ip.length - String(PORT).length))}║
-║  Auth token  :  ${AUTH_TOKEN.slice(0, 32)}${' '.repeat(Math.max(0, 34 - AUTH_TOKEN.slice(0,32).length))}║
-╠══════════════════════════════════════════════════════╣
-║  To expose over internet:                            ║
-║    npx cloudflared tunnel --url http://localhost:${PORT} ║
-╚══════════════════════════════════════════════════════╝
-`);
-});
-
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
@@ -125,5 +101,29 @@ wss.on('connection', (ws, req) => {
     if (stream) try { stream.close(); } catch {}
     if (connected) try { ssh.end(); } catch {}
   });
+});
+
+server.listen(PORT, () => {
+  const ifaces = os.networkInterfaces();
+  const localIPs = [];
+  for (const iface of Object.values(ifaces)) {
+    for (const addr of iface) {
+      if (addr.family === 'IPv4' && !addr.internal) localIPs.push(addr.address);
+    }
+  }
+  const ip = localIPs[0] || 'localhost';
+  console.log(`
+╔══════════════════════════════════════════════════════╗
+║  r1-ssh-terminal is running                          ║
+╠══════════════════════════════════════════════════════╣
+║  Enter these in the R1 app:                          ║
+║                                                      ║
+║  Server URL  :  http://${ip}:${PORT}${' '.repeat(Math.max(0, 26 - ip.length - String(PORT).length))}║
+║  Auth token  :  ${AUTH_TOKEN.slice(0, 32)}${' '.repeat(Math.max(0, 34 - AUTH_TOKEN.slice(0,32).length))}║
+╠══════════════════════════════════════════════════════╣
+║  To expose over internet:                            ║
+║    npx cloudflared tunnel --url http://localhost:${PORT} ║
+╚══════════════════════════════════════════════════════╝
+`);
 });
 
