@@ -67,3 +67,7 @@ SSH_KEY_PATH=/home/user/.ssh/id_ed25519
 ## License
 
 MIT
+
+## Credits
+
+- Creation icon: [Command Line Icon](https://www.freeiconspng.com/img/18607) by [freeiconspng.com](https://www.freeiconspng.com/) — Personal use only
