@@ -123,12 +123,18 @@ function printBanner(publicUrl) {
 
 function getLocalUrl() {
   const ifaces = os.networkInterfaces();
-  for (const iface of Object.values(ifaces)) {
-    for (const addr of iface) {
-      if (addr.family === 'IPv4' && !addr.internal) return `http://${addr.address}:${PORT}`;
+  const candidates = [];
+  for (const [name, addrs] of Object.entries(ifaces)) {
+    for (const addr of addrs) {
+      if (addr.family !== 'IPv4' || addr.internal) continue;
+      // Skip Tailscale and other VPN interfaces — R1 won't be on those networks
+      if (name.startsWith('tailscale') || name.startsWith('tun') || name.startsWith('utun')) continue;
+      if (addr.address.startsWith('100.')) continue; // Tailscale CGNAT range
+      candidates.push(addr.address);
     }
   }
-  return `http://localhost:${PORT}`;
+  const ip = candidates[0] || 'localhost';
+  return `http://${ip}:${PORT}`;
 }
 
 server.listen(PORT, () => {
