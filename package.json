@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "SSH terminal backend for the r1-ssh-terminal Rabbit R1 Creation",
   "bin": {
-    "r1-terminal": "./backend/server.js"
+    "r1-terminal": "./bin/r1-terminal.js"
   },
   "scripts": {
     "start": "node ./backend/server.js"
