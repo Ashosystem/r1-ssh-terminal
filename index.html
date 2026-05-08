@@ -33,79 +33,13 @@ html, body {
   background: #1a1a1a; border-bottom: 1px solid #333;
   font-size: 10px;
 }
-#status { color: #888; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#status { color: #888; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #status.connected { color: #4caf50; }
 #status.error { color: #f44336; }
-.hdr-btn {
+#btn-action {
   background: #333; border: none; color: #aaa;
-  font-size: 9px; padding: 2px 5px; border-radius: 3px; cursor: pointer; margin-left: 3px;
+  font-size: 9px; padding: 2px 5px; border-radius: 3px; cursor: pointer;
 }
-
-/* Onboarding screen */
-#onboarding-screen {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: flex-start; justify-content: center; gap: 0; padding: 14px 12px;
-}
-#onboarding-screen h2 { font-size: 11px; color: #7ab8e8; margin-bottom: 8px; align-self: center; }
-.ob-step {
-  display: flex; align-items: flex-start; gap: 6px;
-  margin-bottom: 7px; width: 100%;
-}
-.ob-num {
-  font-size: 9px; color: #7ab8e8; font-weight: bold;
-  min-width: 13px; padding-top: 1px;
-}
-.ob-text { font-size: 9px; color: #ccc; line-height: 1.45; }
-.ob-code {
-  display: block; margin-top: 2px;
-  font-family: monospace; font-size: 8.5px; color: #adf; background: #1a1a1a;
-  border: 1px solid #333; border-radius: 3px; padding: 2px 4px;
-  word-break: break-all;
-}
-#btn-onboarding-continue {
-  width: 100%; padding: 7px; background: #1a3a5c; border: 1px solid #2a5a8c;
-  color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer; margin-top: 4px;
-}
-#btn-onboarding-continue:active { background: #2a5a8c; }
-
-/* Scan screen */
-#scan-screen {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: flex-start;
-  background: #000; position: relative; overflow: hidden;
-}
-#scan-video {
-  width: 240px; height: 220px; object-fit: cover; display: block;
-}
-#scan-hint {
-  font-size: 9px; color: #aaa; padding: 5px 0 3px; text-align: center;
-}
-#scan-cancel {
-  width: 90%; padding: 5px; background: #222; border: 1px solid #444;
-  color: #aaa; font-size: 10px; border-radius: 4px; cursor: pointer;
-}
-#scan-canvas { display: none; }
-#scan-status { font-size: 9px; color: #7ab8e8; min-height: 13px; padding: 2px 0; }
-
-/* Setup screen */
-#setup-screen {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 6px; padding: 12px;
-}
-#setup-screen h2 { font-size: 11px; color: #7ab8e8; margin-bottom: 2px; }
-#setup-screen p  { font-size: 9px; color: #888; text-align: center; line-height: 1.4; }
-.setup-input {
-  background: #1a1a1a; border: 1px solid #333; color: #e0e0e0;
-  font-size: 10px; padding: 4px 6px; border-radius: 3px; width: 100%;
-}
-.setup-input::placeholder { color: #555; }
-#btn-setup-save {
-  width: 100%; padding: 6px; background: #1a3a5c; border: 1px solid #2a5a8c;
-  color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer; margin-top: 2px;
-}
-#btn-setup-save:active { background: #2a5a8c; }
-
-/* Connect screen */
 #connect-screen {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 7px; padding: 12px;
@@ -123,11 +57,7 @@ html, body {
   color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer;
 }
 #btn-connect:active { background: #2a5a8c; }
-
-/* Terminal */
 #terminal-wrap { flex: 1; overflow: hidden; display: none; min-height: 0; }
-
-/* Nav row */
 #nav-row {
   display: none; align-items: center; justify-content: space-around;
   height: 26px; background: #161616; border-top: 1px solid #2a2a2a;
@@ -143,8 +73,6 @@ html, body {
 .nk:active { background: #555; }
 #ptt { background: #1a3a5c; border-color: #2a5a8c; color: #7ab8e8; }
 #ptt.active { background: #8b0000; border-color: #cc0000; color: #ff6666; }
-
-/* Keyboard */
 #virtual-keyboard {
   display: none; flex-direction: column;
   padding: 2px 4px 2px; gap: 2px;
@@ -171,62 +99,18 @@ html, body {
 
 <div id="header">
   <span id="status">SSH Terminal</span>
-  <div style="display:flex;align-items:center;">
-    <button class="hdr-btn" id="btn-kbd" onclick="toggleKbd()" style="display:none;">⌨</button>
-    <button class="hdr-btn" id="btn-action" onclick="handleAction()">—</button>
-  </div>
+  <button id="btn-kbd" onclick="toggleKbd()" style="display:none;background:#333;border:none;color:#aaa;font-size:9px;padding:2px 5px;border-radius:3px;cursor:pointer;margin-right:4px;">⌨</button>
+  <button id="btn-action" onclick="handleAction()">—</button>
 </div>
 
-<!-- Onboarding screen (very first launch) -->
-<div id="onboarding-screen" style="display:none;">
-  <h2>Getting Started</h2>
-  <div class="ob-step">
-    <span class="ob-num">1.</span>
-    <span class="ob-text">On your server:
-      <span class="ob-code">git clone https://github.com/<br>Ashosystem/r1-ssh-terminal</span>
-      <span class="ob-code">cd r1-ssh-terminal</span>
-      <span class="ob-code">node bin/r1-terminal.js</span>
-    </span>
-  </div>
-  <div class="ob-step">
-    <span class="ob-num">2.</span>
-    <span class="ob-text">Copy the <b style="color:#7ab8e8">URL</b> and <b style="color:#7ab8e8">token</b> printed in your terminal</span>
-  </div>
-  <div class="ob-step">
-    <span class="ob-num">3.</span>
-    <span class="ob-text">Tap Continue and enter them to connect</span>
-  </div>
-  <button id="btn-onboarding-continue" onclick="finishOnboarding()">Continue</button>
-</div>
-
-<!-- QR scan screen -->
-<div id="scan-screen" style="display:none;">
-  <video id="scan-video" autoplay playsinline muted></video>
-  <canvas id="scan-canvas"></canvas>
-  <div id="scan-status"></div>
-  <div id="scan-hint">Point at the QR code shown in your terminal</div>
-  <button id="scan-cancel" onclick="stopScan()">Cancel</button>
-</div>
-
-<!-- Setup screen (first run) -->
-<div id="setup-screen" style="display:none;">
-  <h2>Setup</h2>
-  <button id="btn-scan-qr" onclick="startScan()" style="width:100%;padding:7px;background:#1a3a5c;border:1px solid #2a5a8c;color:#7ab8e8;font-size:11px;border-radius:4px;cursor:pointer;">📷 Scan QR Code</button>
-  <p style="font-size:9px;color:#555;margin:2px 0;">— or enter manually —</p>
-  <input class="setup-input" id="inp-backend" type="url" placeholder="http://192.168.x.x:3000" autocomplete="off" spellcheck="false">
-  <input class="setup-input" id="inp-token" type="text" placeholder="Auth token" autocomplete="off" spellcheck="false">
-  <button id="btn-setup-save" onclick="saveSetup()">Save</button>
-</div>
-
-<!-- Connect screen -->
-<div id="connect-screen" style="display:none;">
+<div id="connect-screen">
   <h2>SSH Terminal</h2>
   <input class="conn-input" id="inp-host" type="text" placeholder="Hostname or IP" autocomplete="off" spellcheck="false">
   <div class="conn-row">
     <input class="conn-input" id="inp-user" type="text" placeholder="User (root)" autocomplete="off">
     <input class="conn-input" id="inp-port" type="number" placeholder="22" style="width:54px;flex:none;">
   </div>
-  <input class="conn-input" id="inp-pass" type="password" placeholder="Password (or leave blank for key auth)" autocomplete="off">
+  <input class="conn-input" id="inp-pass" type="password" placeholder="Password" autocomplete="off">
   <button id="btn-connect" onclick="doConnect()">Connect</button>
 </div>
 
@@ -267,162 +151,57 @@ html, body {
 
 </div><!-- #app -->
 
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script>
-// ── Storage helpers ────────────────────────────────────────────────────────────
-async function storeGet(k) {
-  try {
-    const val = await window.creationStorage.plain.getItem(k);
-    return val || null;
-  } catch {}
-  try { return localStorage.getItem(k); } catch {}
-  return null;
-}
-async function storeSet(k, v) {
-  try { await window.creationStorage.plain.setItem(k, v); return; } catch {}
-  try { localStorage.setItem(k, v); } catch {}
-}
+// Token comes from URL ?token= param, cached in creationStorage for subsequent opens
+const STORED_TOKEN_KEY = 'r1term-token';
 
-// ── State ──────────────────────────────────────────────────────────────────────
+function getToken() {
+  const fromUrl = new URLSearchParams(window.location.search).get('token');
+  if (fromUrl) {
+    try { window.creationStorage.plain.setItem(STORED_TOKEN_KEY, fromUrl); } catch {}
+    return fromUrl;
+  }
+  try { return window.creationStorage.plain.getItem(STORED_TOKEN_KEY) || ''; } catch {}
+  return '';
+}
+const TOKEN = getToken();
+
 let ws = null, term = null, fitAddon = null;
 let isLandscape = false, kbdVisible = true;
 
-const appEl        = document.getElementById('app');
-const statusEl     = document.getElementById('status');
-const btnAction    = document.getElementById('btn-action');
-const btnKbd       = document.getElementById('btn-kbd');
-const onboardScr   = document.getElementById('onboarding-screen');
-const scanScr      = document.getElementById('scan-screen');
-const setupScr     = document.getElementById('setup-screen');
-const connectScr   = document.getElementById('connect-screen');
-const termWrap     = document.getElementById('terminal-wrap');
-const navRow       = document.getElementById('nav-row');
-const virtualKbd   = document.getElementById('virtual-keyboard');
+const appEl      = document.getElementById('app');
+const statusEl   = document.getElementById('status');
+const btnAction  = document.getElementById('btn-action');
+const btnKbd     = document.getElementById('btn-kbd');
+const connectScr = document.getElementById('connect-screen');
+const termWrap   = document.getElementById('terminal-wrap');
+const navRow     = document.getElementById('nav-row');
+const virtualKbd = document.getElementById('virtual-keyboard');
 
 function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls || ''; }
 
-function hideAll() {
-  onboardScr.style.display = 'none';
-  scanScr.style.display    = 'none';
-  setupScr.style.display   = 'none';
-  connectScr.style.display = 'none';
+function handleAction() {
+  if (ws && ws.readyState === WebSocket.OPEN) { ws.close(); }
+  showConnect();
+}
+
+function showConnect() {
+  connectScr.style.display = 'flex';
   termWrap.style.display   = 'none';
   navRow.style.display     = 'none';
   virtualKbd.style.display = 'none';
   btnKbd.style.display     = 'none';
-}
-
-// ── Onboarding screen ─────────────────────────────────────────────────────────
-function showOnboarding() {
-  hideAll();
-  onboardScr.style.display = 'flex';
   btnAction.textContent    = '—';
   setStatus('SSH Terminal');
 }
 
-async function finishOnboarding() {
-  await storeSet('r1term_onboarded', '1');
-  showSetup();
-}
-
-// ── QR scan ───────────────────────────────────────────────────────────────────
-let scanStream = null, scanActive = false;
-
-async function startScan() {
-  hideAll();
-  scanScr.style.display = 'flex';
-  btnAction.textContent = '—';
-  setStatus('Scanning…');
-  const video = document.getElementById('scan-video');
-  const scanStatus = document.getElementById('scan-status');
-  try {
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    video.srcObject = scanStream;
-    await video.play();
-    scanActive = true;
-    scanStatus.textContent = 'Searching…';
-    requestAnimationFrame(scanFrame);
-  } catch(e) {
-    scanStatus.textContent = 'Camera unavailable';
-    setTimeout(showSetup, 1500);
-  }
-}
-
-function scanFrame() {
-  if (!scanActive) return;
-  const video = document.getElementById('scan-video');
-  const canvas = document.getElementById('scan-canvas');
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-    if (code) {
-      try {
-        const data = JSON.parse(code.data);
-        if (data.url && data.token) {
-          scanActive = false;
-          if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-          Promise.all([storeSet('r1term_backend', data.url), storeSet('r1term_token', data.token)])
-            .then(() => showConnect());
-          return;
-        }
-      } catch {}
-    }
-  }
-  requestAnimationFrame(scanFrame);
-}
-
-function stopScan() {
-  scanActive = false;
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-  showSetup();
-}
-
-// ── Setup screen ───────────────────────────────────────────────────────────────
-async function showSetup() {
-  hideAll();
-  setupScr.style.display = 'flex';
-  btnAction.textContent  = '—';
-  setStatus('SSH Terminal');
-  const saved = await storeGet('r1term_backend');
-  if (saved) document.getElementById('inp-backend').value = saved;
-  const tok = await storeGet('r1term_token');
-  if (tok) document.getElementById('inp-token').value = tok;
-}
-
-async function saveSetup() {
-  const url = document.getElementById('inp-backend').value.trim().replace(/\/$/, '');
-  const tok = document.getElementById('inp-token').value.trim();
-  if (!url || !tok) { setStatus('fill all fields', 'error'); return; }
-  await storeSet('r1term_backend', url);
-  await storeSet('r1term_token', tok);
-  showConnect();
-}
-
-// ── Connect screen ─────────────────────────────────────────────────────────────
-function showConnect() {
-  hideAll();
-  connectScr.style.display = 'flex';
-  btnAction.textContent    = '⚙';
-  setStatus('ready');
-}
-
-async function handleAction() {
-  if (ws && ws.readyState === WebSocket.OPEN) { ws.close(); showConnect(); }
-  else showSetup();
-}
-
-// ── Terminal screen ────────────────────────────────────────────────────────────
 function showTerminal() {
-  hideAll();
+  connectScr.style.display = 'none';
   termWrap.style.display   = 'block';
-  navRow.style.display     = kbdVisible ? 'flex' : 'none';
-  virtualKbd.style.display = kbdVisible ? 'flex' : 'none';
+  navRow.style.display     = 'flex';
+  virtualKbd.style.display = 'flex';
   btnKbd.style.display     = 'inline-block';
   btnAction.textContent    = '✕';
 }
@@ -431,12 +210,11 @@ function toggleKbd() {
   kbdVisible = !kbdVisible;
   navRow.style.display     = kbdVisible ? 'flex' : 'none';
   virtualKbd.style.display = kbdVisible ? 'flex' : 'none';
-  btnKbd.textContent       = kbdVisible ? '⌨' : '⌨+';
-  btnKbd.style.color       = kbdVisible ? '#aaa' : '#7ab8e8';
+  btnKbd.textContent = kbdVisible ? '⌨' : '⌨+';
+  btnKbd.style.color = kbdVisible ? '#aaa' : '#7ab8e8';
   setTimeout(resizeTerm, 50);
 }
 
-// ── xterm.js ───────────────────────────────────────────────────────────────────
 function sendToTerm(chars) {
   if (ws && ws.readyState === WebSocket.OPEN)
     ws.send(JSON.stringify({ type: 'data', data: btoa(unescape(encodeURIComponent(chars))) }));
@@ -470,24 +248,19 @@ function resizeTerm() {
     ws.send(JSON.stringify({ type: 'resize', rows: term.rows, cols: term.cols }));
 }
 
-// ── WebSocket / SSH ────────────────────────────────────────────────────────────
-async function doConnect() {
-  const backendUrl = await storeGet('r1term_backend');
-  const token      = await storeGet('r1term_token');
-  if (!backendUrl || !token) { setStatus('no backend set', 'error'); setTimeout(showSetup, 800); return; }
-
+function doConnect() {
   const host = document.getElementById('inp-host').value.trim();
   const user = document.getElementById('inp-user').value.trim() || 'root';
   const port = parseInt(document.getElementById('inp-port').value) || 22;
   const pass = document.getElementById('inp-pass').value;
   if (!host) { setStatus('enter a hostname', 'error'); return; }
+
   if (ws) { try { ws.close(); } catch {} }
-  const proto = backendUrl.startsWith('https') ? 'wss' : 'ws';
-  const wsUrl = proto + '://' + backendUrl.replace(/^https?:\/\//, '') + '/ws';
-  ws = new WebSocket(wsUrl);
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
   setStatus('connecting…');
 
-  ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token }));
+  ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token: TOKEN }));
 
   ws.onmessage = (evt) => {
     const pkt = JSON.parse(evt.data);
@@ -533,20 +306,12 @@ pttBtn.addEventListener('click', () => {
   pttBtn.textContent = pttActive ? '●REC' : 'PTT';
   try { CreationVoiceHandler.postMessage(pttActive ? 'start' : 'stop'); } catch {}
 });
-
 window.addEventListener('longPressStart', () => {
-  if (!pttActive) {
-    pttActive = true; pttBtn.classList.add('active'); pttBtn.textContent = '●REC';
-    try { CreationVoiceHandler.postMessage('start'); } catch {}
-  }
+  if (!pttActive) { pttActive = true; pttBtn.classList.add('active'); pttBtn.textContent = '●REC'; try { CreationVoiceHandler.postMessage('start'); } catch {} }
 });
 window.addEventListener('longPressEnd', () => {
-  if (pttActive) {
-    pttActive = false; pttBtn.classList.remove('active'); pttBtn.textContent = 'PTT';
-    try { CreationVoiceHandler.postMessage('stop'); } catch {}
-  }
+  if (pttActive) { pttActive = false; pttBtn.classList.remove('active'); pttBtn.textContent = 'PTT'; try { CreationVoiceHandler.postMessage('stop'); } catch {} }
 });
-
 window.onPluginMessage = (msg) => {
   try {
     const data = typeof msg === 'string' ? JSON.parse(msg) : msg;
@@ -570,7 +335,6 @@ window.onPluginMessage = (msg) => {
     ['-','/',':',';','(',')','$','&','@','"'],
     ['.',',','?','!','\'']
   ];
-
   function applyShift() {
     document.querySelectorAll('.key[data-k]').forEach(k => {
       const v = k.dataset.k;
@@ -579,10 +343,9 @@ window.onPluginMessage = (msg) => {
     const s = document.getElementById('kbd-shift');
     if (s) s.classList.toggle('shifted', shifted);
   }
-
   function applySymMode() {
     const allRows = document.querySelectorAll('#virtual-keyboard .kbd-row');
-    const symBtn  = document.getElementById('kbd-sym');
+    const symBtn = document.getElementById('kbd-sym');
     [0,1,2].forEach(r => {
       const keys = allRows[r] && allRows[r].querySelectorAll('.key[data-k]');
       if (!keys) return;
@@ -593,7 +356,6 @@ window.onPluginMessage = (msg) => {
     });
     if (symBtn) symBtn.textContent = symMode ? 'ABC' : '?123';
   }
-
   document.getElementById('virtual-keyboard').addEventListener('click', function(e) {
     const key = e.target.closest('.key');
     if (!key) return;
@@ -617,7 +379,6 @@ async function setLandscape(on) {
   appEl.classList.toggle('landscape', on);
   setTimeout(resizeTerm, 300);
 }
-
 (async function() {
   function onTilt(ax) {
     if (!isLandscape && ax > 7) setLandscape(true);
@@ -641,9 +402,8 @@ async function setLandscape(on) {
     } catch(e) {}
   }
   if (typeof DeviceMotionEvent !== 'undefined')
-    window.addEventListener('devicemotion', (e) => { const a = e.accelerationIncludingGravity; if (a) onTilt(Math.abs(a.x||0)); });
+    window.addEventListener('devicemotion', (e) => { const a = e.accelerationIncludingGravity; if (a) onTilt(Math.abs(a.x || 0)); });
 })();
-
 (function() {
   let tx0 = 0;
   document.addEventListener('touchstart', (e) => { tx0 = e.touches[0].clientX; }, { passive: true });
@@ -656,15 +416,7 @@ async function setLandscape(on) {
   }, { passive: false });
 })();
 
-// ── Init ───────────────────────────────────────────────────────────────────────
-(async function init() {
-  const onboarded = await storeGet('r1term_onboarded');
-  if (!onboarded) { showOnboarding(); return; }
-  const backend = await storeGet('r1term_backend');
-  const token   = await storeGet('r1term_token');
-  if (backend && token) showConnect();
-  else showSetup();
-})();
+showConnect();
 </script>
 </body>
 </html>

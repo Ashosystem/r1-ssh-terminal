@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-require('dotenv').config({ path: require('path').join(process.cwd(), '.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const os = require('os');
 const QRCode = require('qrcode');
@@ -19,14 +19,22 @@ const SSH_KEY_PATH = process.env.SSH_KEY_PATH || null;
 let AUTH_TOKEN = process.env.AUTH_TOKEN;
 if (!AUTH_TOKEN) {
   AUTH_TOKEN = crypto.randomBytes(16).toString('hex');
-  const envPath = path.join(process.cwd(), '.env');
-  fs.appendFileSync(envPath, `\nAUTH_TOKEN=${AUTH_TOKEN}\n`);
+  const envPath = path.join(__dirname, '.env');
+  const existing = fs.readFileSync(envPath, 'utf8').replace(/^AUTH_TOKEN=.*$/m, '');
+  fs.writeFileSync(envPath, existing.trimEnd() + `\nAUTH_TOKEN=${AUTH_TOKEN}\n`);
 }
 
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
+// Serve the frontend — token injected via ?token= query param
+app.get('/', (req, res) => {
+  if (req.query.token !== AUTH_TOKEN) {
+    return res.status(403).send('Invalid token');
+  }
+  res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 wss.on('connection', (ws) => {
@@ -41,7 +49,7 @@ wss.on('connection', (ws) => {
 
   ssh.on('ready', () => {
     connected = true;
-    ssh.shell({ term: 'xterm-256color', cols: 80, rows: 24 }, (err, s) => {
+    ssh.shell({ term: 'xterm-256color', cols: 38, rows: 20 }, (err, s) => {
       if (err) { ws.send(JSON.stringify({ type: 'error', message: err.message })); ws.close(); return; }
       stream = s;
       ws.send(JSON.stringify({ type: 'ready' }));
@@ -105,18 +113,17 @@ wss.on('connection', (ws) => {
   });
 });
 
-function printBanner(publicUrl) {
-  const payload = JSON.stringify({ url: publicUrl, token: AUTH_TOKEN });
+function printBanner(baseUrl) {
+  const creationUrl = `${baseUrl}/?token=${AUTH_TOKEN}`;
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║  r1-ssh-terminal is running                          ║
 ╠══════════════════════════════════════════════════════╣
-║  Scan QR with your R1 or enter manually:             ║
-║  URL  : ${publicUrl.padEnd(44)}║
-║  Token: ${AUTH_TOKEN.slice(0, 44).padEnd(44)}║
-╚══════════════════════════════════════════════════════╝
+║  Add this URL as a Creation on your R1:              ║
+║  ${creationUrl.slice(0, 52).padEnd(52)}║
+${creationUrl.length > 52 ? `║  ${creationUrl.slice(52, 104).padEnd(52)}║\n` : ''}╚══════════════════════════════════════════════════════╝
 `);
-  QRCode.toString(payload, { type: 'terminal', small: true }, (err, qr) => {
+  QRCode.toString(creationUrl, { type: 'terminal', small: true }, (err, qr) => {
     if (!err) console.log(qr);
   });
 }
@@ -127,14 +134,12 @@ function getLocalUrl() {
   for (const [name, addrs] of Object.entries(ifaces)) {
     for (const addr of addrs) {
       if (addr.family !== 'IPv4' || addr.internal) continue;
-      // Skip Tailscale and other VPN interfaces — R1 won't be on those networks
       if (name.startsWith('tailscale') || name.startsWith('tun') || name.startsWith('utun')) continue;
-      if (addr.address.startsWith('100.')) continue; // Tailscale CGNAT range
+      if (addr.address.startsWith('100.')) continue;
       candidates.push(addr.address);
     }
   }
-  const ip = candidates[0] || 'localhost';
-  return `http://${ip}:${PORT}`;
+  return `http://${candidates[0] || 'localhost'}:${PORT}`;
 }
 
 server.listen(PORT, () => {
@@ -153,19 +158,11 @@ server.listen(PORT, () => {
     const onData = (data) => {
       const line = data.toString();
       const match = line.match(urlRe);
-      if (match && !tunnelUrl) {
-        tunnelUrl = match[0];
-        printBanner(tunnelUrl);
-      }
+      if (match && !tunnelUrl) { tunnelUrl = match[0]; printBanner(tunnelUrl); }
     };
     cf.stdout.on('data', onData);
     cf.stderr.on('data', onData);
-    setTimeout(() => {
-      if (!tunnelUrl) {
-        console.warn('cloudflared did not produce a URL — showing local address');
-        printBanner(getLocalUrl());
-      }
-    }, 15000);
+    setTimeout(() => { if (!tunnelUrl) { console.warn('cloudflared timed out — showing local address'); printBanner(getLocalUrl()); } }, 15000);
     process.on('exit', () => { try { cf.kill(); } catch {} });
     return;
   }
