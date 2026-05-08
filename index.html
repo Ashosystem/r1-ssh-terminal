@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=240, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SSH Terminal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 240px; height: 282px;
+  background: #0d0d0d; color: #e0e0e0;
+  font-family: monospace; overflow: hidden;
+}
+#app {
+  position: absolute;
+  width: 240px; height: 282px;
+  top: 0; left: 0;
+  display: flex; flex-direction: column;
+  transition: transform 0.25s ease;
+}
+#app.landscape {
+  width: 282px; height: 240px;
+  top: 21px; left: -21px;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+#header {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 22px; padding: 0 6px; flex-shrink: 0;
+  background: #1a1a1a; border-bottom: 1px solid #333;
+  font-size: 10px;
+}
+#status { color: #888; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#status.connected { color: #4caf50; }
+#status.error { color: #f44336; }
+.hdr-btn {
+  background: #333; border: none; color: #aaa;
+  font-size: 9px; padding: 2px 5px; border-radius: 3px; cursor: pointer; margin-left: 3px;
+}
+
+/* Setup screen */
+#setup-screen {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px; padding: 12px;
+}
+#setup-screen h2 { font-size: 11px; color: #7ab8e8; margin-bottom: 2px; }
+#setup-screen p  { font-size: 9px; color: #888; text-align: center; line-height: 1.4; }
+.setup-input {
+  background: #1a1a1a; border: 1px solid #333; color: #e0e0e0;
+  font-size: 10px; padding: 4px 6px; border-radius: 3px; width: 100%;
+}
+.setup-input::placeholder { color: #555; }
+#btn-setup-save {
+  width: 100%; padding: 6px; background: #1a3a5c; border: 1px solid #2a5a8c;
+  color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer; margin-top: 2px;
+}
+#btn-setup-save:active { background: #2a5a8c; }
+
+/* Connect screen */
+#connect-screen {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 7px; padding: 12px;
+}
+#connect-screen h2 { font-size: 11px; color: #aaa; margin-bottom: 2px; }
+.conn-input {
+  background: #1a1a1a; border: 1px solid #333; color: #e0e0e0;
+  font-size: 10px; padding: 4px 6px; border-radius: 3px; width: 100%;
+}
+.conn-input::placeholder { color: #555; }
+.conn-row { display: flex; gap: 4px; width: 100%; }
+.conn-row .conn-input { flex: 1; }
+#btn-connect {
+  width: 100%; padding: 6px; background: #1a3a5c; border: 1px solid #2a5a8c;
+  color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer;
+}
+#btn-connect:active { background: #2a5a8c; }
+
+/* Terminal */
+#terminal-wrap { flex: 1; overflow: hidden; display: none; min-height: 0; }
+
+/* Nav row */
+#nav-row {
+  display: none; align-items: center; justify-content: space-around;
+  height: 26px; background: #161616; border-top: 1px solid #2a2a2a;
+  padding: 0 2px; gap: 2px; flex-shrink: 0;
+}
+.nk {
+  flex: 1; height: 22px;
+  background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc;
+  font-size: 9px; border-radius: 3px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+.nk:active { background: #555; }
+#ptt { background: #1a3a5c; border-color: #2a5a8c; color: #7ab8e8; }
+#ptt.active { background: #8b0000; border-color: #cc0000; color: #ff6666; }
+
+/* Keyboard */
+#virtual-keyboard {
+  display: none; flex-direction: column;
+  padding: 2px 4px 2px; gap: 2px;
+  background: #111; flex-shrink: 0;
+}
+.kbd-row { display: flex; gap: 2px; justify-content: center; height: 24px; }
+.key {
+  flex: 1;
+  background: #2a2a2e; border: 1px solid #555; border-bottom: 2px solid #444;
+  color: #fff; border-radius: 4px; font-size: 10px; font-weight: 500;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+.key:active { background: #555; }
+.key.wide   { flex: 1.6; font-size: 9px; }
+.key.space  { flex: 4; }
+.key.action { background: #3a6abf; border-color: #2a4a9f; }
+.key.action:active { background: #4a7acf; }
+.key.shifted { background: #3a3a44; color: #aad4ff; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="header">
+  <span id="status">SSH Terminal</span>
+  <div style="display:flex;align-items:center;">
+    <button class="hdr-btn" id="btn-kbd" onclick="toggleKbd()" style="display:none;">⌨</button>
+    <button class="hdr-btn" id="btn-action" onclick="handleAction()">—</button>
+  </div>
+</div>
+
+<!-- Setup screen (first run) -->
+<div id="setup-screen" style="display:none;">
+  <h2>Setup</h2>
+  <p>Enter your backend URL and auth token. Run the backend server first.</p>
+  <input class="setup-input" id="inp-backend" type="url" placeholder="https://your-server.com:3000" autocomplete="off" spellcheck="false">
+  <input class="setup-input" id="inp-token" type="text" placeholder="Auth token" autocomplete="off" spellcheck="false">
+  <button id="btn-setup-save" onclick="saveSetup()">Save</button>
+</div>
+
+<!-- Connect screen -->
+<div id="connect-screen" style="display:none;">
+  <h2>SSH Terminal</h2>
+  <input class="conn-input" id="inp-host" type="text" placeholder="Hostname or IP" autocomplete="off" spellcheck="false">
+  <div class="conn-row">
+    <input class="conn-input" id="inp-user" type="text" placeholder="User (root)" autocomplete="off">
+    <input class="conn-input" id="inp-port" type="number" placeholder="22" style="width:54px;flex:none;">
+  </div>
+  <input class="conn-input" id="inp-pass" type="password" placeholder="Password (or leave blank for key auth)" autocomplete="off">
+  <button id="btn-connect" onclick="doConnect()">Connect</button>
+</div>
+
+<div id="terminal-wrap"></div>
+
+<div id="nav-row">
+  <div class="nk" data-seq="&#x1b;">ESC</div>
+  <div class="nk" data-seq="&#x09;">TAB</div>
+  <div class="nk" data-seq="&#x03;">^C</div>
+  <div class="nk" data-seq="&#x04;">^D</div>
+  <div class="nk" data-seq="&#x1b;[A">↑</div>
+  <div class="nk" data-seq="&#x1b;[B">↓</div>
+  <div class="nk" data-seq="&#x1b;[D">←</div>
+  <div class="nk" data-seq="&#x1b;[C">→</div>
+  <div class="nk" id="ptt">PTT</div>
+</div>
+
+<div id="virtual-keyboard">
+  <div class="kbd-row">
+    <button class="key" data-k="q">q</button><button class="key" data-k="w">w</button><button class="key" data-k="e">e</button><button class="key" data-k="r">r</button><button class="key" data-k="t">t</button><button class="key" data-k="y">y</button><button class="key" data-k="u">u</button><button class="key" data-k="i">i</button><button class="key" data-k="o">o</button><button class="key" data-k="p">p</button>
+  </div>
+  <div class="kbd-row" style="padding:0 5px">
+    <button class="key" data-k="a">a</button><button class="key" data-k="s">s</button><button class="key" data-k="d">d</button><button class="key" data-k="f">f</button><button class="key" data-k="g">g</button><button class="key" data-k="h">h</button><button class="key" data-k="j">j</button><button class="key" data-k="k">k</button><button class="key" data-k="l">l</button>
+  </div>
+  <div class="kbd-row">
+    <button class="key wide" id="kbd-shift">&#8679;</button>
+    <button class="key" data-k="z">z</button><button class="key" data-k="x">x</button><button class="key" data-k="c">c</button><button class="key" data-k="v">v</button><button class="key" data-k="b">b</button><button class="key" data-k="n">n</button><button class="key" data-k="m">m</button>
+    <button class="key wide" id="kbd-back">&#9003;</button>
+  </div>
+  <div class="kbd-row">
+    <button class="key wide" id="kbd-sym">?123</button>
+    <button class="key" data-k="-">-</button>
+    <button class="key space" id="kbd-space">space</button>
+    <button class="key" data-k="/">/</button>
+    <button class="key wide action" id="kbd-enter">&#9166;</button>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<script>
+// ── Storage helpers ────────────────────────────────────────────────────────────
+function storeGet(k) {
+  try { return window.creationStorage.plain.getItem(k) || null; } catch {}
+  try { return localStorage.getItem(k); } catch {}
+  return null;
+}
+function storeSet(k, v) {
+  try { window.creationStorage.plain.setItem(k, v); return; } catch {}
+  try { localStorage.setItem(k, v); } catch {}
+}
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let ws = null, term = null, fitAddon = null;
+let isLandscape = false, kbdVisible = true;
+
+const appEl      = document.getElementById('app');
+const statusEl   = document.getElementById('status');
+const btnAction  = document.getElementById('btn-action');
+const btnKbd     = document.getElementById('btn-kbd');
+const setupScr   = document.getElementById('setup-screen');
+const connectScr = document.getElementById('connect-screen');
+const termWrap   = document.getElementById('terminal-wrap');
+const navRow     = document.getElementById('nav-row');
+const virtualKbd = document.getElementById('virtual-keyboard');
+
+function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls || ''; }
+
+// ── Setup screen ───────────────────────────────────────────────────────────────
+function showSetup() {
+  setupScr.style.display   = 'flex';
+  connectScr.style.display = 'none';
+  termWrap.style.display   = 'none';
+  navRow.style.display     = 'none';
+  virtualKbd.style.display = 'none';
+  btnKbd.style.display     = 'none';
+  btnAction.textContent    = '—';
+  setStatus('SSH Terminal');
+  const saved = storeGet('r1term_backend');
+  if (saved) document.getElementById('inp-backend').value = saved;
+  const tok = storeGet('r1term_token');
+  if (tok) document.getElementById('inp-token').value = tok;
+}
+
+function saveSetup() {
+  const url = document.getElementById('inp-backend').value.trim().replace(/\/$/, '');
+  const tok = document.getElementById('inp-token').value.trim();
+  if (!url || !tok) { setStatus('fill all fields', 'error'); return; }
+  storeSet('r1term_backend', url);
+  storeSet('r1term_token', tok);
+  showConnect();
+}
+
+// ── Connect screen ─────────────────────────────────────────────────────────────
+function showConnect() {
+  setupScr.style.display   = 'none';
+  connectScr.style.display = 'flex';
+  termWrap.style.display   = 'none';
+  navRow.style.display     = 'none';
+  virtualKbd.style.display = 'none';
+  btnKbd.style.display     = 'none';
+  btnAction.textContent    = '⚙';
+  setStatus('ready');
+}
+
+function handleAction() {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+  else showSetup();
+}
+
+// ── Terminal screen ────────────────────────────────────────────────────────────
+function showTerminal() {
+  setupScr.style.display   = 'none';
+  connectScr.style.display = 'none';
+  termWrap.style.display   = 'block';
+  navRow.style.display     = kbdVisible ? 'flex' : 'none';
+  virtualKbd.style.display = kbdVisible ? 'flex' : 'none';
+  btnKbd.style.display     = 'inline-block';
+  btnAction.textContent    = '✕';
+}
+
+function toggleKbd() {
+  kbdVisible = !kbdVisible;
+  navRow.style.display     = kbdVisible ? 'flex' : 'none';
+  virtualKbd.style.display = kbdVisible ? 'flex' : 'none';
+  btnKbd.textContent       = kbdVisible ? '⌨' : '⌨+';
+  btnKbd.style.color       = kbdVisible ? '#aaa' : '#7ab8e8';
+  setTimeout(resizeTerm, 50);
+}
+
+// ── xterm.js ───────────────────────────────────────────────────────────────────
+function sendToTerm(chars) {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ type: 'data', data: btoa(unescape(encodeURIComponent(chars))) }));
+}
+
+function initTerm() {
+  if (term) { term.dispose(); term = null; fitAddon = null; }
+  termWrap.innerHTML = '';
+  term = new Terminal({
+    fontSize: 9, fontFamily: 'monospace',
+    theme: { background: '#0d0d0d', foreground: '#e0e0e0', cursor: '#aaa' },
+    cursorBlink: true, scrollback: 200,
+  });
+  fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(termWrap);
+  requestAnimationFrame(() => {
+    const ta = termWrap.querySelector('textarea');
+    if (ta) { ta.setAttribute('inputmode', 'none'); ta.setAttribute('readonly', ''); }
+  });
+  fitAddon.fit();
+  term.onData(sendToTerm);
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ type: 'resize', rows: term.rows, cols: term.cols }));
+}
+
+function resizeTerm() {
+  if (!term || !fitAddon) return;
+  fitAddon.fit();
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ type: 'resize', rows: term.rows, cols: term.cols }));
+}
+
+// ── WebSocket / SSH ────────────────────────────────────────────────────────────
+function doConnect() {
+  const backendUrl = storeGet('r1term_backend');
+  const token      = storeGet('r1term_token');
+  if (!backendUrl || !token) { showSetup(); return; }
+
+  const host = document.getElementById('inp-host').value.trim();
+  const user = document.getElementById('inp-user').value.trim() || 'root';
+  const port = parseInt(document.getElementById('inp-port').value) || 22;
+  const pass = document.getElementById('inp-pass').value;
+  if (!host) { setStatus('enter a hostname', 'error'); return; }
+
+  if (ws) { try { ws.close(); } catch {} }
+  const proto = backendUrl.startsWith('https') ? 'wss' : 'ws';
+  const wsUrl = proto + '://' + backendUrl.replace(/^https?:\/\//, '') + '/ws';
+  ws = new WebSocket(wsUrl);
+  setStatus('connecting…');
+
+  ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token }));
+
+  ws.onmessage = (evt) => {
+    const pkt = JSON.parse(evt.data);
+    if (pkt.type === 'auth_ok') {
+      setStatus('opening SSH…');
+      ws.send(JSON.stringify({ type: 'connect', host, port, user, ...(pass ? { password: pass } : {}) }));
+    } else if (pkt.type === 'ready') {
+      initTerm();
+      showTerminal();
+      setStatus('● ' + user + '@' + host, 'connected');
+    } else if (pkt.type === 'data') {
+      if (term) {
+        const b = atob(pkt.data);
+        const u = new Uint8Array(b.length);
+        for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+        term.write(u);
+      }
+    } else if (pkt.type === 'closed') {
+      setStatus('session ended'); showConnect();
+    } else if (pkt.type === 'error') {
+      setStatus('✕ ' + pkt.message, 'error'); showConnect();
+    }
+  };
+
+  ws.onclose = (evt) => {
+    if (!statusEl.classList.contains('connected') && !statusEl.classList.contains('error'))
+      setStatus(evt.reason ? '✕ ' + evt.reason : 'disconnected', 'error');
+    else if (statusEl.classList.contains('connected')) { setStatus('disconnected'); showConnect(); }
+  };
+
+  ws.onerror = () => { setStatus('✕ connection failed', 'error'); showConnect(); };
+}
+
+// ── Nav row ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.nk[data-seq]').forEach(btn =>
+  btn.addEventListener('click', () => sendToTerm(btn.dataset.seq)));
+
+const pttBtn = document.getElementById('ptt');
+let pttActive = false;
+pttBtn.addEventListener('click', () => {
+  pttActive = !pttActive;
+  pttBtn.classList.toggle('active', pttActive);
+  pttBtn.textContent = pttActive ? '●REC' : 'PTT';
+  try { CreationVoiceHandler.postMessage(pttActive ? 'start' : 'stop'); } catch {}
+});
+
+window.addEventListener('longPressStart', () => {
+  if (!pttActive) {
+    pttActive = true; pttBtn.classList.add('active'); pttBtn.textContent = '●REC';
+    try { CreationVoiceHandler.postMessage('start'); } catch {}
+  }
+});
+window.addEventListener('longPressEnd', () => {
+  if (pttActive) {
+    pttActive = false; pttBtn.classList.remove('active'); pttBtn.textContent = 'PTT';
+    try { CreationVoiceHandler.postMessage('stop'); } catch {}
+  }
+});
+
+window.onPluginMessage = (msg) => {
+  try {
+    const data = typeof msg === 'string' ? JSON.parse(msg) : msg;
+    if (data.type === 'sttEnded' && data.transcript) {
+      sendToTerm(data.transcript.trim() + '\n');
+      pttActive = false; pttBtn.classList.remove('active'); pttBtn.textContent = 'PTT';
+    }
+  } catch {}
+};
+
+// ── DOM Keyboard ───────────────────────────────────────────────────────────────
+(function() {
+  let shifted = false, symMode = false;
+  const letters = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['z','x','c','v','b','n','m']
+  ];
+  const symbols = [
+    ['1','2','3','4','5','6','7','8','9','0'],
+    ['-','/',':',';','(',')','$','&','@','"'],
+    ['.',',','?','!','\'']
+  ];
+
+  function applyShift() {
+    document.querySelectorAll('.key[data-k]').forEach(k => {
+      const v = k.dataset.k;
+      if (v.length === 1 && v >= 'a' && v <= 'z') k.textContent = shifted ? v.toUpperCase() : v;
+    });
+    const s = document.getElementById('kbd-shift');
+    if (s) s.classList.toggle('shifted', shifted);
+  }
+
+  function applySymMode() {
+    const allRows = document.querySelectorAll('#virtual-keyboard .kbd-row');
+    const symBtn  = document.getElementById('kbd-sym');
+    [0,1,2].forEach(r => {
+      const keys = allRows[r] && allRows[r].querySelectorAll('.key[data-k]');
+      if (!keys) return;
+      keys.forEach((k, i) => {
+        const src = symMode ? (symbols[r] || [])[i] : (letters[r] || [])[i];
+        if (src !== undefined) { k.dataset.k = src; k.textContent = (!symMode && shifted) ? src.toUpperCase() : src; }
+      });
+    });
+    if (symBtn) symBtn.textContent = symMode ? 'ABC' : '?123';
+  }
+
+  document.getElementById('virtual-keyboard').addEventListener('click', function(e) {
+    const key = e.target.closest('.key');
+    if (!key) return;
+    const id = key.id, v = key.dataset.k;
+    if      (id === 'kbd-shift') { shifted = !shifted; symMode = false; applyShift(); }
+    else if (id === 'kbd-sym')   { symMode = !symMode; applySymMode(); }
+    else if (id === 'kbd-back')  { sendToTerm('\x7f'); }
+    else if (id === 'kbd-space') { sendToTerm(' '); }
+    else if (id === 'kbd-enter') { sendToTerm('\r'); }
+    else if (v) {
+      sendToTerm((shifted && !symMode) ? v.toUpperCase() : v);
+      if (shifted && !symMode) { shifted = false; applyShift(); }
+    }
+  });
+})();
+
+// ── Landscape ─────────────────────────────────────────────────────────────────
+async function setLandscape(on) {
+  if (on === isLandscape) return;
+  isLandscape = on;
+  appEl.classList.toggle('landscape', on);
+  setTimeout(resizeTerm, 300);
+}
+
+(async function() {
+  function onTilt(ax) {
+    if (!isLandscape && ax > 7) setLandscape(true);
+    else if (isLandscape && ax < 4) setLandscape(false);
+  }
+  if (typeof window.creationSensors !== 'undefined') {
+    try {
+      if (await window.creationSensors.accelerometer.isAvailable()) {
+        const cb = (data) => {
+          const ax = Math.abs(data.x || 0);
+          if (!isLandscape && ax > 0.7) setLandscape(true);
+          else if (isLandscape && ax < 0.4) setLandscape(false);
+        };
+        window.creationSensors.accelerometer.start(cb, { frequency: 10 });
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) window.creationSensors.accelerometer.stop();
+          else window.creationSensors.accelerometer.start(cb, { frequency: 10 });
+        });
+        return;
+      }
+    } catch(e) {}
+  }
+  if (typeof DeviceMotionEvent !== 'undefined')
+    window.addEventListener('devicemotion', (e) => { const a = e.accelerationIncludingGravity; if (a) onTilt(Math.abs(a.x||0)); });
+})();
+
+(function() {
+  let tx0 = 0;
+  document.addEventListener('touchstart', (e) => { tx0 = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!isLandscape || termWrap.style.display === 'none') return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - tx0;
+    termWrap.scrollTop -= dx * 1.5;
+    tx0 = e.touches[0].clientX;
+  }, { passive: false });
+})();
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+(function init() {
+  const backend = storeGet('r1term_backend');
+  const token   = storeGet('r1term_token');
+  if (backend && token) showConnect();
+  else showSetup();
+})();
+</script>
+</body>
+</html>

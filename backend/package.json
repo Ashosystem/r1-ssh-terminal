@@ -1,0 +1,15 @@
+{
+  "name": "r1-ssh-terminal-backend",
+  "version": "1.0.0",
+  "description": "SSH relay backend for the r1-ssh-terminal Rabbit R1 Creation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "ssh2": "^1.16.0",
+    "ws": "^8.18.0"
+  }
+}
