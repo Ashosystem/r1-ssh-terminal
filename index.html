@@ -141,10 +141,18 @@ html, body {
 
 <!-- Setup screen -->
 <div id="setup-screen" style="display:none;">
-  <h2>Backend Setup</h2>
-  <button id="btn-scan-qr" onclick="startScan()">📷 Scan QR from terminal</button>
+  <h2>Setup</h2>
+  <div style="width:100%;background:#111;border:1px solid #222;border-radius:4px;padding:7px 8px;font-size:9px;color:#aaa;line-height:1.6;">
+    <div style="color:#7ab8e8;font-size:9px;margin-bottom:3px;">On your computer:</div>
+    <div>1. git clone https://github.com/Ashosystem/r1-ssh-terminal</div>
+    <div>2. cd r1-ssh-terminal/backend &amp;&amp; npm install</div>
+    <div>3. node server.js</div>
+    <div style="color:#7ab8e8;margin-top:4px;">A QR code will print in the terminal.</div>
+    <div style="margin-top:2px;">Scan it below to connect your R1.</div>
+  </div>
+  <button id="btn-scan-qr" onclick="startScan()" style="margin-top:4px;">📷 Scan QR from terminal</button>
   <p style="font-size:9px;color:#555;margin:1px 0;">— or enter manually —</p>
-  <input class="setup-input" id="inp-backend" type="url" placeholder="http://192.168.x.x:3000" autocomplete="off" spellcheck="false">
+  <input class="setup-input" id="inp-backend" type="url" placeholder="Backend URL" autocomplete="off" spellcheck="false">
   <input class="setup-input" id="inp-token" type="text" placeholder="Auth token" autocomplete="off" spellcheck="false">
   <button id="btn-setup-save" onclick="saveSetup()">Save &amp; Continue</button>
 </div>

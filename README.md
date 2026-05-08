@@ -1,22 +1,20 @@
 # r1-ssh-terminal
 
-An SSH terminal Creation for the [Rabbit R1](https://www.rabbit.tech/) device. Connect to any SSH server directly from your R1.
+An SSH terminal Creation for the [Rabbit R1](https://www.rabbit.tech/). Run a backend on any machine, scan a QR on your R1, and get a full SSH terminal.
 
-## Features
+## How it works
 
-- Full xterm.js terminal with UTF-8 support
-- DOM keyboard (no native keyboard pop-up) with shift, symbols, backspace
-- Nav row: ESC, TAB, ^C, ^D, arrow keys
-- Collapsible keyboard (tap ⌨ in header)
-- Auto-rotate to landscape mode
-- PTT voice-to-command via R1 physical button (long press)
-- Password or SSH key authentication
+```
+R1 (Creation) ──WebSocket──► backend (your machine) ──SSH──► any SSH server
+```
 
-## Setup
+- The **frontend** lives at `https://ashosystem.github.io/r1-ssh-terminal/` (installed once as a Creation)
+- The **backend** runs on your own machine — a Node.js relay that spawns a public tunnel automatically
+- No port forwarding, no static IP needed
 
-### 1. Deploy the backend
+## Quickstart
 
-On any machine you want to SSH from (or a relay VPS):
+### 1. Run the backend on your computer
 
 ```bash
 git clone https://github.com/Ashosystem/r1-ssh-terminal
@@ -25,45 +23,46 @@ npm install
 node server.js
 ```
 
-On first run, an auth token is auto-generated and saved to `.env`. Copy the token printed in the console.
+A cloudflared tunnel starts automatically and a QR code prints in the terminal. No separate cloudflared install needed.
 
-Expose publicly with [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
-```bash
-npx cloudflared tunnel --url http://localhost:3000
-```
-Copy the `https://....trycloudflare.com` URL.
+### 2. Install the Creation on your R1
 
-### 2. Add the Creation to your R1
-
-Open your R1 and add this URL as a Creation:
+Use [boondit.site/r1-generator](https://boondit.site/r1-generator) to install this URL as a Creation:
 
 ```
 https://ashosystem.github.io/r1-ssh-terminal/
 ```
 
-### 3. Configure on first launch
+### 3. First launch — scan the QR
 
-The first time you open the Creation, you'll see a Setup screen. Enter:
-- **Backend URL**: your Cloudflare tunnel URL (e.g. `https://abc123.trycloudflare.com`)
-- **Auth token**: the token printed when you started the backend
+Open the Creation on your R1. The Setup screen will show step-by-step instructions and a **Scan QR** button. Point your R1 camera at the QR printed in your terminal — done.
 
-Tap **Save**, then connect to any SSH host.
+### 4. Connect
 
-## Optional: SSH key auth
+Enter any SSH host, username, port, and password, then tap **Connect**. The last connection is saved and pre-filled next time.
 
-Set `SSH_KEY_PATH` in `backend/.env` to use a key stored on the backend server (no password needed from the R1):
+## PTT button
 
-```env
-SSH_KEY_PATH=/home/user/.ssh/id_ed25519
-```
+- **Short press** — sends Enter (submits the current command)
+- **Long press** — voice-to-text; release to send transcript to terminal
 
 ## Backend `.env` options
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3000` | Port to listen on |
-| `AUTH_TOKEN` | auto-generated | Token the R1 uses to authenticate |
-| `SSH_KEY_PATH` | *(none)* | Path to SSH private key for key auth |
+| `AUTH_TOKEN` | auto-generated | Saved on first run, included in QR |
+| `USE_CLOUDFLARED` | `true` | Set to `false` to disable auto-tunnel |
+| `PUBLIC_URL` | *(none)* | Fixed public URL (skips auto-tunnel) |
+| `SSH_KEY_PATH` | *(none)* | Path to SSH private key on backend machine |
+
+## SSH key auth
+
+Set `SSH_KEY_PATH` in `backend/.env` to authenticate without typing a password on the R1:
+
+```env
+SSH_KEY_PATH=/home/user/.ssh/id_ed25519
+```
 
 ## License
 
