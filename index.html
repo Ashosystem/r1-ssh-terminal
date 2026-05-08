@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=240, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <title>SSH Terminal</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
 <style>
@@ -15,34 +14,66 @@ html, body {
   font-family: monospace; overflow: hidden;
 }
 #app {
-  position: absolute;
-  width: 240px; height: 282px;
-  top: 0; left: 0;
+  position: absolute; width: 240px; height: 282px; top: 0; left: 0;
   display: flex; flex-direction: column;
   transition: transform 0.25s ease;
 }
 #app.landscape {
-  width: 282px; height: 240px;
-  top: 21px; left: -21px;
-  transform: rotate(-90deg);
-  transform-origin: center;
+  width: 282px; height: 240px; top: 21px; left: -21px;
+  transform: rotate(-90deg); transform-origin: center;
 }
 #header {
   display: flex; align-items: center; justify-content: space-between;
   height: 22px; padding: 0 6px; flex-shrink: 0;
-  background: #1a1a1a; border-bottom: 1px solid #333;
-  font-size: 10px;
+  background: #1a1a1a; border-bottom: 1px solid #333; font-size: 10px;
 }
-#status { color: #888; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#status { color: #888; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #status.connected { color: #4caf50; }
 #status.error { color: #f44336; }
-#btn-action {
+.hdr-btn {
   background: #333; border: none; color: #aaa;
-  font-size: 9px; padding: 2px 5px; border-radius: 3px; cursor: pointer;
+  font-size: 9px; padding: 2px 5px; border-radius: 3px; cursor: pointer; margin-left: 3px;
 }
+
+/* Setup screen */
+#setup-screen {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 5px; padding: 10px 12px;
+}
+#setup-screen h2 { font-size: 11px; color: #7ab8e8; margin-bottom: 3px; }
+.setup-input {
+  background: #1a1a1a; border: 1px solid #333; color: #e0e0e0;
+  font-size: 10px; padding: 4px 6px; border-radius: 3px; width: 100%;
+}
+.setup-input::placeholder { color: #555; }
+#btn-scan-qr {
+  width: 100%; padding: 6px; background: #1a2a1a; border: 1px solid #2a4a2a;
+  color: #7ab8e8; font-size: 10px; border-radius: 4px; cursor: pointer;
+}
+#btn-setup-save {
+  width: 100%; padding: 6px; background: #1a3a5c; border: 1px solid #2a5a8c;
+  color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer; margin-top: 2px;
+}
+#btn-setup-save:active { background: #2a5a8c; }
+
+/* QR scan screen */
+#scan-screen {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; background: #000; position: relative; overflow: hidden;
+}
+#scan-video { width: 240px; height: 210px; object-fit: cover; display: block; }
+#scan-hint { font-size: 9px; color: #aaa; padding: 4px 0 2px; text-align: center; }
+#scan-status { font-size: 9px; color: #7ab8e8; min-height: 12px; }
+#scan-cancel {
+  width: 90%; padding: 5px; background: #222; border: 1px solid #444;
+  color: #aaa; font-size: 10px; border-radius: 4px; cursor: pointer;
+}
+#scan-canvas { display: none; }
+
+/* Connect screen */
 #connect-screen {
   flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 7px; padding: 12px;
+  align-items: center; justify-content: center; gap: 6px; padding: 12px;
 }
 #connect-screen h2 { font-size: 11px; color: #aaa; margin-bottom: 2px; }
 .conn-input {
@@ -57,15 +88,18 @@ html, body {
   color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer;
 }
 #btn-connect:active { background: #2a5a8c; }
+
+/* Terminal */
 #terminal-wrap { flex: 1; overflow: hidden; display: none; min-height: 0; }
+
+/* Nav row */
 #nav-row {
   display: none; align-items: center; justify-content: space-around;
   height: 26px; background: #161616; border-top: 1px solid #2a2a2a;
   padding: 0 2px; gap: 2px; flex-shrink: 0;
 }
 .nk {
-  flex: 1; height: 22px;
-  background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc;
+  flex: 1; height: 22px; background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc;
   font-size: 9px; border-radius: 3px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   touch-action: manipulation; user-select: none; -webkit-user-select: none;
@@ -73,17 +107,17 @@ html, body {
 .nk:active { background: #555; }
 #ptt { background: #1a3a5c; border-color: #2a5a8c; color: #7ab8e8; }
 #ptt.active { background: #8b0000; border-color: #cc0000; color: #ff6666; }
+
+/* Keyboard */
 #virtual-keyboard {
-  display: none; flex-direction: column;
-  padding: 2px 4px 2px; gap: 2px;
+  display: none; flex-direction: column; padding: 2px 4px; gap: 2px;
   background: #111; flex-shrink: 0;
 }
 .kbd-row { display: flex; gap: 2px; justify-content: center; height: 24px; }
 .key {
-  flex: 1;
-  background: #2a2a2e; border: 1px solid #555; border-bottom: 2px solid #444;
-  color: #fff; border-radius: 4px; font-size: 10px; font-weight: 500;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex: 1; background: #2a2a2e; border: 1px solid #555; border-bottom: 2px solid #444;
+  color: #fff; border-radius: 4px; font-size: 10px; font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
   touch-action: manipulation; user-select: none; -webkit-user-select: none;
 }
 .key:active { background: #555; }
@@ -99,11 +133,33 @@ html, body {
 
 <div id="header">
   <span id="status">SSH Terminal</span>
-  <button id="btn-kbd" onclick="toggleKbd()" style="display:none;background:#333;border:none;color:#aaa;font-size:9px;padding:2px 5px;border-radius:3px;cursor:pointer;margin-right:4px;">⌨</button>
-  <button id="btn-action" onclick="handleAction()">—</button>
+  <div>
+    <button class="hdr-btn" id="btn-kbd" onclick="toggleKbd()" style="display:none;">⌨</button>
+    <button class="hdr-btn" id="btn-action" onclick="handleAction()">⚙</button>
+  </div>
 </div>
 
-<div id="connect-screen">
+<!-- Setup screen -->
+<div id="setup-screen" style="display:none;">
+  <h2>Backend Setup</h2>
+  <button id="btn-scan-qr" onclick="startScan()">📷 Scan QR from terminal</button>
+  <p style="font-size:9px;color:#555;margin:1px 0;">— or enter manually —</p>
+  <input class="setup-input" id="inp-backend" type="url" placeholder="http://192.168.x.x:3000" autocomplete="off" spellcheck="false">
+  <input class="setup-input" id="inp-token" type="text" placeholder="Auth token" autocomplete="off" spellcheck="false">
+  <button id="btn-setup-save" onclick="saveSetup()">Save &amp; Continue</button>
+</div>
+
+<!-- QR scan screen -->
+<div id="scan-screen" style="display:none;">
+  <video id="scan-video" autoplay playsinline muted></video>
+  <canvas id="scan-canvas"></canvas>
+  <div id="scan-status">Searching…</div>
+  <div id="scan-hint">Point at QR shown in your terminal</div>
+  <button id="scan-cancel" onclick="stopScan()">Cancel</button>
+</div>
+
+<!-- Connect screen -->
+<div id="connect-screen" style="display:none;">
   <h2>SSH Terminal</h2>
   <input class="conn-input" id="inp-host" type="text" placeholder="Hostname or IP" autocomplete="off" spellcheck="false">
   <div class="conn-row">
@@ -151,30 +207,38 @@ html, body {
 
 </div><!-- #app -->
 
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script>
-// Token comes from URL ?token= param, cached in creationStorage for subsequent opens
-const STORED_TOKEN_KEY = 'r1term-token';
-
-function getToken() {
-  const fromUrl = new URLSearchParams(window.location.search).get('token');
-  if (fromUrl) {
-    try { window.creationStorage.plain.setItem(STORED_TOKEN_KEY, fromUrl); } catch {}
-    return fromUrl;
-  }
-  try { return window.creationStorage.plain.getItem(STORED_TOKEN_KEY) || ''; } catch {}
-  return '';
+// ── Storage — synchronous, localStorage primary, creationStorage bonus ─────────
+function storeSave(k, v) {
+  try { localStorage.setItem(k, v); } catch {}
+  try {
+    const r = window.creationStorage.plain.setItem(k, v);
+    if (r && typeof r.then === 'function') r.catch(() => {});
+  } catch {}
 }
-const TOKEN = getToken();
+function storeLoad(k) {
+  try { const v = localStorage.getItem(k); if (v !== null) return v; } catch {}
+  try {
+    const v = window.creationStorage.plain.getItem(k);
+    if (v && typeof v.then !== 'function') return v;
+  } catch {}
+  return null;
+}
 
+// ── State ──────────────────────────────────────────────────────────────────────
 let ws = null, term = null, fitAddon = null;
 let isLandscape = false, kbdVisible = true;
+let scanStream = null, scanActive = false;
 
 const appEl      = document.getElementById('app');
 const statusEl   = document.getElementById('status');
 const btnAction  = document.getElementById('btn-action');
 const btnKbd     = document.getElementById('btn-kbd');
+const setupScr   = document.getElementById('setup-screen');
+const scanScr    = document.getElementById('scan-screen');
 const connectScr = document.getElementById('connect-screen');
 const termWrap   = document.getElementById('terminal-wrap');
 const navRow     = document.getElementById('nav-row');
@@ -182,23 +246,106 @@ const virtualKbd = document.getElementById('virtual-keyboard');
 
 function setStatus(t, cls) { statusEl.textContent = t; statusEl.className = cls || ''; }
 
-function handleAction() {
-  if (ws && ws.readyState === WebSocket.OPEN) { ws.close(); }
-  showConnect();
-}
-
-function showConnect() {
-  connectScr.style.display = 'flex';
+function hideAll() {
+  setupScr.style.display   = 'none';
+  scanScr.style.display    = 'none';
+  connectScr.style.display = 'none';
   termWrap.style.display   = 'none';
   navRow.style.display     = 'none';
   virtualKbd.style.display = 'none';
   btnKbd.style.display     = 'none';
-  btnAction.textContent    = '—';
-  setStatus('SSH Terminal');
 }
 
+function handleAction() {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+  showSetup();
+}
+
+// ── Setup screen ───────────────────────────────────────────────────────────────
+function showSetup() {
+  hideAll();
+  setupScr.style.display = 'flex';
+  btnAction.textContent  = '⚙';
+  setStatus('Setup');
+  const saved = storeLoad('r1term_backend');
+  if (saved) document.getElementById('inp-backend').value = saved;
+  const tok = storeLoad('r1term_token');
+  if (tok) document.getElementById('inp-token').value = tok;
+}
+
+function saveSetup() {
+  const url = document.getElementById('inp-backend').value.trim().replace(/\/$/, '');
+  const tok = document.getElementById('inp-token').value.trim();
+  if (!url || !tok) { setStatus('fill both fields', 'error'); return; }
+  storeSave('r1term_backend', url);
+  storeSave('r1term_token', tok);
+  showConnect();
+}
+
+// ── QR scan ───────────────────────────────────────────────────────────────────
+function startScan() {
+  hideAll();
+  scanScr.style.display = 'flex';
+  setStatus('Scanning…');
+  const video = document.getElementById('scan-video');
+  const scanStatus = document.getElementById('scan-status');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      scanStream = stream;
+      video.srcObject = stream;
+      video.play();
+      scanActive = true;
+      scanStatus.textContent = 'Searching…';
+      requestAnimationFrame(scanFrame);
+    })
+    .catch(() => { scanStatus.textContent = 'Camera unavailable'; setTimeout(showSetup, 1500); });
+}
+
+function scanFrame() {
+  if (!scanActive) return;
+  const video = document.getElementById('scan-video');
+  const canvas = document.getElementById('scan-canvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (code) {
+      try {
+        const data = JSON.parse(code.data);
+        if (data.url && data.token) {
+          stopScan();
+          document.getElementById('inp-backend').value = data.url;
+          document.getElementById('inp-token').value = data.token;
+          storeSave('r1term_backend', data.url);
+          storeSave('r1term_token', data.token);
+          showConnect();
+          return;
+        }
+      } catch {}
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+
+function stopScan() {
+  scanActive = false;
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  showSetup();
+}
+
+// ── Connect screen ─────────────────────────────────────────────────────────────
+function showConnect() {
+  hideAll();
+  connectScr.style.display = 'flex';
+  btnAction.textContent    = '⚙';
+  setStatus('ready');
+}
+
+// ── Terminal screen ────────────────────────────────────────────────────────────
 function showTerminal() {
-  connectScr.style.display = 'none';
+  hideAll();
   termWrap.style.display   = 'block';
   navRow.style.display     = 'flex';
   virtualKbd.style.display = 'flex';
@@ -215,6 +362,7 @@ function toggleKbd() {
   setTimeout(resizeTerm, 50);
 }
 
+// ── xterm.js ───────────────────────────────────────────────────────────────────
 function sendToTerm(chars) {
   if (ws && ws.readyState === WebSocket.OPEN)
     ws.send(JSON.stringify({ type: 'data', data: btoa(unescape(encodeURIComponent(chars))) }));
@@ -248,7 +396,12 @@ function resizeTerm() {
     ws.send(JSON.stringify({ type: 'resize', rows: term.rows, cols: term.cols }));
 }
 
+// ── WebSocket / SSH ────────────────────────────────────────────────────────────
 function doConnect() {
+  const backendUrl = storeLoad('r1term_backend');
+  const token      = storeLoad('r1term_token');
+  if (!backendUrl || !token) { setStatus('no backend configured', 'error'); setTimeout(showSetup, 800); return; }
+
   const host = document.getElementById('inp-host').value.trim();
   const user = document.getElementById('inp-user').value.trim() || 'root';
   const port = parseInt(document.getElementById('inp-port').value) || 22;
@@ -256,11 +409,12 @@ function doConnect() {
   if (!host) { setStatus('enter a hostname', 'error'); return; }
 
   if (ws) { try { ws.close(); } catch {} }
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  const proto = backendUrl.startsWith('https') ? 'wss' : 'ws';
+  const wsUrl = proto + '://' + backendUrl.replace(/^https?:\/\//, '') + '/ws';
+  ws = new WebSocket(wsUrl);
   setStatus('connecting…');
 
-  ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token: TOKEN }));
+  ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', token }));
 
   ws.onmessage = (evt) => {
     const pkt = JSON.parse(evt.data);
@@ -268,8 +422,7 @@ function doConnect() {
       setStatus('opening SSH…');
       ws.send(JSON.stringify({ type: 'connect', host, port, user, ...(pass ? { password: pass } : {}) }));
     } else if (pkt.type === 'ready') {
-      initTerm();
-      showTerminal();
+      initTerm(); showTerminal();
       setStatus('● ' + user + '@' + host, 'connected');
     } else if (pkt.type === 'data') {
       if (term) {
@@ -325,23 +478,11 @@ window.onPluginMessage = (msg) => {
 // ── DOM Keyboard ───────────────────────────────────────────────────────────────
 (function() {
   let shifted = false, symMode = false;
-  const letters = [
-    ['q','w','e','r','t','y','u','i','o','p'],
-    ['a','s','d','f','g','h','j','k','l'],
-    ['z','x','c','v','b','n','m']
-  ];
-  const symbols = [
-    ['1','2','3','4','5','6','7','8','9','0'],
-    ['-','/',':',';','(',')','$','&','@','"'],
-    ['.',',','?','!','\'']
-  ];
+  const letters = [['q','w','e','r','t','y','u','i','o','p'],['a','s','d','f','g','h','j','k','l'],['z','x','c','v','b','n','m']];
+  const symbols = [['1','2','3','4','5','6','7','8','9','0'],['-','/',':',';','(',')','$','&','@','"'],['.',',','?','!','\'']];
   function applyShift() {
-    document.querySelectorAll('.key[data-k]').forEach(k => {
-      const v = k.dataset.k;
-      if (v.length === 1 && v >= 'a' && v <= 'z') k.textContent = shifted ? v.toUpperCase() : v;
-    });
-    const s = document.getElementById('kbd-shift');
-    if (s) s.classList.toggle('shifted', shifted);
+    document.querySelectorAll('.key[data-k]').forEach(k => { const v = k.dataset.k; if (v.length===1&&v>='a'&&v<='z') k.textContent=shifted?v.toUpperCase():v; });
+    const s = document.getElementById('kbd-shift'); if (s) s.classList.toggle('shifted', shifted);
   }
   function applySymMode() {
     const allRows = document.querySelectorAll('#virtual-keyboard .kbd-row');
@@ -349,26 +490,19 @@ window.onPluginMessage = (msg) => {
     [0,1,2].forEach(r => {
       const keys = allRows[r] && allRows[r].querySelectorAll('.key[data-k]');
       if (!keys) return;
-      keys.forEach((k, i) => {
-        const src = symMode ? (symbols[r] || [])[i] : (letters[r] || [])[i];
-        if (src !== undefined) { k.dataset.k = src; k.textContent = (!symMode && shifted) ? src.toUpperCase() : src; }
-      });
+      keys.forEach((k,i) => { const src=symMode?(symbols[r]||[])[i]:(letters[r]||[])[i]; if(src!==undefined){k.dataset.k=src;k.textContent=(!symMode&&shifted)?src.toUpperCase():src;} });
     });
     if (symBtn) symBtn.textContent = symMode ? 'ABC' : '?123';
   }
   document.getElementById('virtual-keyboard').addEventListener('click', function(e) {
-    const key = e.target.closest('.key');
-    if (!key) return;
+    const key = e.target.closest('.key'); if (!key) return;
     const id = key.id, v = key.dataset.k;
-    if      (id === 'kbd-shift') { shifted = !shifted; symMode = false; applyShift(); }
-    else if (id === 'kbd-sym')   { symMode = !symMode; applySymMode(); }
-    else if (id === 'kbd-back')  { sendToTerm('\x7f'); }
-    else if (id === 'kbd-space') { sendToTerm(' '); }
-    else if (id === 'kbd-enter') { sendToTerm('\r'); }
-    else if (v) {
-      sendToTerm((shifted && !symMode) ? v.toUpperCase() : v);
-      if (shifted && !symMode) { shifted = false; applyShift(); }
-    }
+    if      (id==='kbd-shift') { shifted=!shifted; symMode=false; applyShift(); }
+    else if (id==='kbd-sym')   { symMode=!symMode; applySymMode(); }
+    else if (id==='kbd-back')  { sendToTerm('\x7f'); }
+    else if (id==='kbd-space') { sendToTerm(' '); }
+    else if (id==='kbd-enter') { sendToTerm('\r'); }
+    else if (v) { sendToTerm((shifted&&!symMode)?v.toUpperCase():v); if(shifted&&!symMode){shifted=false;applyShift();} }
   });
 })();
 
@@ -380,10 +514,6 @@ async function setLandscape(on) {
   setTimeout(resizeTerm, 300);
 }
 (async function() {
-  function onTilt(ax) {
-    if (!isLandscape && ax > 7) setLandscape(true);
-    else if (isLandscape && ax < 4) setLandscape(false);
-  }
   if (typeof window.creationSensors !== 'undefined') {
     try {
       if (await window.creationSensors.accelerometer.isAvailable()) {
@@ -402,7 +532,10 @@ async function setLandscape(on) {
     } catch(e) {}
   }
   if (typeof DeviceMotionEvent !== 'undefined')
-    window.addEventListener('devicemotion', (e) => { const a = e.accelerationIncludingGravity; if (a) onTilt(Math.abs(a.x || 0)); });
+    window.addEventListener('devicemotion', (e) => {
+      const a = e.accelerationIncludingGravity;
+      if (a) { const ax = Math.abs(a.x||0); if(!isLandscape&&ax>7)setLandscape(true); else if(isLandscape&&ax<4)setLandscape(false); }
+    });
 })();
 (function() {
   let tx0 = 0;
@@ -416,7 +549,13 @@ async function setLandscape(on) {
   }, { passive: false });
 })();
 
-showConnect();
+// ── Init ───────────────────────────────────────────────────────────────────────
+(function init() {
+  const backend = storeLoad('r1term_backend');
+  const token   = storeLoad('r1term_token');
+  if (backend && token) showConnect();
+  else showSetup();
+})();
 </script>
 </body>
 </html>

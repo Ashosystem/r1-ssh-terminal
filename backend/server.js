@@ -28,13 +28,6 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-// Serve the frontend — token injected via ?token= query param
-app.get('/', (req, res) => {
-  if (req.query.token !== AUTH_TOKEN) {
-    return res.status(403).send('Invalid token');
-  }
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
-});
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 wss.on('connection', (ws) => {
@@ -64,6 +57,7 @@ wss.on('connection', (ws) => {
   });
 
   ssh.on('error', (err) => {
+    console.error('SSH error:', err.message);
     if (ws.readyState === ws.OPEN)
       ws.send(JSON.stringify({ type: 'error', message: err.message }));
     ws.close();
@@ -87,6 +81,7 @@ wss.on('connection', (ws) => {
       }
       if (pkt.type === 'connect') {
         const { host, port = 22, user = 'root', password, key } = pkt;
+        console.log(`SSH connect attempt: ${user}@${host}:${port} password=${!!password} key=${!!key}`);
         if (!host) { ws.send(JSON.stringify({ type: 'error', message: 'No host specified' })); ws.close(); return; }
         const sshConfig = { host, port: parseInt(port), username: user, readyTimeout: 10000 };
         if (key) {
@@ -114,16 +109,19 @@ wss.on('connection', (ws) => {
 });
 
 function printBanner(baseUrl) {
-  const creationUrl = `${baseUrl}/?token=${AUTH_TOKEN}`;
+  const payload = JSON.stringify({ url: baseUrl, token: AUTH_TOKEN });
   console.log(`
 ╔══════════════════════════════════════════════════════╗
-║  r1-ssh-terminal is running                          ║
+║  r1-ssh-terminal backend running                     ║
 ╠══════════════════════════════════════════════════════╣
-║  Add this URL as a Creation on your R1:              ║
-║  ${creationUrl.slice(0, 52).padEnd(52)}║
-${creationUrl.length > 52 ? `║  ${creationUrl.slice(52, 104).padEnd(52)}║\n` : ''}╚══════════════════════════════════════════════════════╝
+║  1. Add Creation to R1:                              ║
+║     https://ashosystem.github.io/r1-ssh-terminal/   ║
+║  2. Open it → tap Setup → scan QR below, or enter:  ║
+║     URL  : ${baseUrl.padEnd(42)}║
+║     Token: ${AUTH_TOKEN.slice(0,42).padEnd(42)}║
+╚══════════════════════════════════════════════════════╝
 `);
-  QRCode.toString(creationUrl, { type: 'terminal', small: true }, (err, qr) => {
+  QRCode.toString(payload, { type: 'terminal', small: true }, (err, qr) => {
     if (!err) console.log(qr);
   });
 }
