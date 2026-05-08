@@ -272,13 +272,16 @@ html, body {
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script>
 // ── Storage helpers ────────────────────────────────────────────────────────────
-function storeGet(k) {
-  try { return window.creationStorage.plain.getItem(k) || null; } catch {}
+async function storeGet(k) {
+  try {
+    const val = await window.creationStorage.plain.getItem(k);
+    return val || null;
+  } catch {}
   try { return localStorage.getItem(k); } catch {}
   return null;
 }
-function storeSet(k, v) {
-  try { window.creationStorage.plain.setItem(k, v); return; } catch {}
+async function storeSet(k, v) {
+  try { await window.creationStorage.plain.setItem(k, v); return; } catch {}
   try { localStorage.setItem(k, v); } catch {}
 }
 
@@ -319,8 +322,8 @@ function showOnboarding() {
   setStatus('SSH Terminal');
 }
 
-function finishOnboarding() {
-  storeSet('r1term_onboarded', '1');
+async function finishOnboarding() {
+  await storeSet('r1term_onboarded', '1');
   showSetup();
 }
 
@@ -351,7 +354,6 @@ function scanFrame() {
   if (!scanActive) return;
   const video = document.getElementById('scan-video');
   const canvas = document.getElementById('scan-canvas');
-  const scanStatus = document.getElementById('scan-status');
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -363,11 +365,10 @@ function scanFrame() {
       try {
         const data = JSON.parse(code.data);
         if (data.url && data.token) {
-          storeSet('r1term_backend', data.url);
-          storeSet('r1term_token', data.token);
           scanActive = false;
           if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-          showConnect();
+          Promise.all([storeSet('r1term_backend', data.url), storeSet('r1term_token', data.token)])
+            .then(() => showConnect());
           return;
         }
       } catch {}
@@ -383,23 +384,23 @@ function stopScan() {
 }
 
 // ── Setup screen ───────────────────────────────────────────────────────────────
-function showSetup() {
+async function showSetup() {
   hideAll();
   setupScr.style.display = 'flex';
   btnAction.textContent  = '—';
   setStatus('SSH Terminal');
-  const saved = storeGet('r1term_backend');
+  const saved = await storeGet('r1term_backend');
   if (saved) document.getElementById('inp-backend').value = saved;
-  const tok = storeGet('r1term_token');
+  const tok = await storeGet('r1term_token');
   if (tok) document.getElementById('inp-token').value = tok;
 }
 
-function saveSetup() {
+async function saveSetup() {
   const url = document.getElementById('inp-backend').value.trim().replace(/\/$/, '');
   const tok = document.getElementById('inp-token').value.trim();
   if (!url || !tok) { setStatus('fill all fields', 'error'); return; }
-  storeSet('r1term_backend', url);
-  storeSet('r1term_token', tok);
+  await storeSet('r1term_backend', url);
+  await storeSet('r1term_token', tok);
   showConnect();
 }
 
@@ -411,9 +412,9 @@ function showConnect() {
   setStatus('ready');
 }
 
-function handleAction() {
+async function handleAction() {
   if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-  else if (storeGet('r1term_backend') && storeGet('r1term_token')) showConnect();
+  else if (await storeGet('r1term_backend') && await storeGet('r1term_token')) showConnect();
   else showSetup();
 }
 
@@ -471,9 +472,9 @@ function resizeTerm() {
 }
 
 // ── WebSocket / SSH ────────────────────────────────────────────────────────────
-function doConnect() {
-  const backendUrl = storeGet('r1term_backend');
-  const token      = storeGet('r1term_token');
+async function doConnect() {
+  const backendUrl = await storeGet('r1term_backend');
+  const token      = await storeGet('r1term_token');
   if (!backendUrl || !token) { showSetup(); return; }
 
   const host = document.getElementById('inp-host').value.trim();
@@ -658,11 +659,11 @@ async function setLandscape(on) {
 })();
 
 // ── Init ───────────────────────────────────────────────────────────────────────
-(function init() {
-  const onboarded = storeGet('r1term_onboarded');
+(async function init() {
+  const onboarded = await storeGet('r1term_onboarded');
   if (!onboarded) { showOnboarding(); return; }
-  const backend = storeGet('r1term_backend');
-  const token   = storeGet('r1term_token');
+  const backend = await storeGet('r1term_backend');
+  const token   = await storeGet('r1term_token');
   if (backend && token) showConnect();
   else showSetup();
 })();
