@@ -88,6 +88,7 @@ html, body {
   color: #7ab8e8; font-size: 11px; border-radius: 4px; cursor: pointer;
 }
 #btn-connect:active { background: #2a5a8c; }
+#sel-conn { appearance: none; -webkit-appearance: none; cursor: pointer; }
 
 /* Terminal */
 #terminal-wrap { flex: 1; overflow: hidden; display: none; min-height: 0; }
@@ -169,6 +170,9 @@ html, body {
 <!-- Connect screen -->
 <div id="connect-screen" style="display:none;">
   <h2>SSH Terminal</h2>
+  <select id="sel-conn" class="conn-input" style="display:none;" onchange="fillFromSaved()">
+    <option value="">— saved connections —</option>
+  </select>
   <input class="conn-input" id="inp-host" type="text" placeholder="Hostname or IP" autocomplete="off" spellcheck="false">
   <div class="conn-row">
     <input class="conn-input" id="inp-user" type="text" placeholder="User (root)" autocomplete="off">
@@ -237,6 +241,17 @@ function storeLoad(k) {
     if (v && typeof v.then !== 'function' && v) { _mem[k] = v; return v; }
   } catch {}
   return null;
+}
+function loadConnections() {
+  const raw = storeLoad('r1term_connections');
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+function saveConnection(host, user, port) {
+  const conns = loadConnections().filter(c => !(c.host === host && c.user === user && c.port === port));
+  conns.unshift({ host, user, port });
+  if (conns.length > 10) conns.length = 10;
+  storeSave('r1term_connections', JSON.stringify(conns));
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -352,12 +367,28 @@ function showConnect() {
   connectScr.style.display = 'flex';
   btnAction.textContent    = '⚙';
   setStatus('ready');
-  const lh = storeLoad('r1term_last_host');
-  const lu = storeLoad('r1term_last_user');
-  const lp = storeLoad('r1term_last_port');
-  if (lh) document.getElementById('inp-host').value = lh;
-  if (lu) document.getElementById('inp-user').value = lu;
-  if (lp) document.getElementById('inp-port').value = lp;
+  const conns = loadConnections();
+  const sel = document.getElementById('sel-conn');
+  if (conns.length > 0) {
+    sel.innerHTML = '<option value="">— saved connections —</option>' +
+      conns.map((c, i) => `<option value="${i}">${c.user}@${c.host}${c.port !== 22 ? ':' + c.port : ''}</option>`).join('');
+    sel.style.display = '';
+    document.getElementById('inp-host').value = conns[0].host;
+    document.getElementById('inp-user').value = conns[0].user;
+    document.getElementById('inp-port').value = conns[0].port;
+  } else {
+    sel.style.display = 'none';
+  }
+}
+function fillFromSaved() {
+  const sel = document.getElementById('sel-conn');
+  const idx = parseInt(sel.value);
+  if (isNaN(idx)) return;
+  const conns = loadConnections();
+  if (!conns[idx]) return;
+  document.getElementById('inp-host').value = conns[idx].host;
+  document.getElementById('inp-user').value = conns[idx].user;
+  document.getElementById('inp-port').value = conns[idx].port;
 }
 
 // ── Terminal screen ────────────────────────────────────────────────────────────
@@ -439,9 +470,7 @@ function doConnect() {
       setStatus('opening SSH…');
       ws.send(JSON.stringify({ type: 'connect', host, port, user, ...(pass ? { password: pass } : {}) }));
     } else if (pkt.type === 'ready') {
-      storeSave('r1term_last_host', host);
-      storeSave('r1term_last_user', user);
-      storeSave('r1term_last_port', String(port));
+      saveConnection(host, user, port);
       initTerm(); showTerminal();
       setStatus('● ' + user + '@' + host, 'connected');
     } else if (pkt.type === 'data') {
@@ -578,7 +607,7 @@ async function setLandscape(on) {
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 (async function init() {
-  const keys = ['r1term_backend', 'r1term_token', 'r1term_last_host', 'r1term_last_user', 'r1term_last_port'];
+  const keys = ['r1term_backend', 'r1term_token', 'r1term_connections'];
   for (const k of keys) {
     if (_mem[k]) continue;
     try { const v = localStorage.getItem(k); if (v) { _mem[k] = v; continue; } } catch {}
