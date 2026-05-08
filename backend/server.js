@@ -9,8 +9,11 @@ const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { spawn } = require('child_process');
 
 const PORT = parseInt(process.env.PORT) || 3000;
+const USE_CLOUDFLARED = process.env.USE_CLOUDFLARED === 'true';
+const SSH_KEY_PATH = process.env.SSH_KEY_PATH || null;
 
 // Auto-generate AUTH_TOKEN on first run if not set
 let AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -20,15 +23,13 @@ if (!AUTH_TOKEN) {
   fs.appendFileSync(envPath, `\nAUTH_TOKEN=${AUTH_TOKEN}\n`);
 }
 
-const SSH_KEY_PATH = process.env.SSH_KEY_PATH;
-
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', (ws) => {
   let authed = false;
   const ssh = new Client();
   let stream = null;
@@ -104,33 +105,64 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-server.listen(PORT, () => {
-  const ifaces = os.networkInterfaces();
-  const localIPs = [];
-  for (const iface of Object.values(ifaces)) {
-    for (const addr of iface) {
-      if (addr.family === 'IPv4' && !addr.internal) localIPs.push(addr.address);
-    }
-  }
-  const ip = localIPs[0] || 'localhost';
-  const serverUrl = `http://${ip}:${PORT}`;
-  const payload = JSON.stringify({ url: serverUrl, token: AUTH_TOKEN });
-
+function printBanner(publicUrl) {
+  const payload = JSON.stringify({ url: publicUrl, token: AUTH_TOKEN });
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║  r1-ssh-terminal is running                          ║
 ╠══════════════════════════════════════════════════════╣
-║  Scan the QR code below with your R1, or enter:      ║
-║  URL  : ${serverUrl.padEnd(44)}║
+║  Scan QR with your R1 or enter manually:             ║
+║  URL  : ${publicUrl.padEnd(44)}║
 ║  Token: ${AUTH_TOKEN.slice(0, 44).padEnd(44)}║
-╠══════════════════════════════════════════════════════╣
-║  To expose over internet:                            ║
-║    npx cloudflared tunnel --url http://localhost:${PORT} ║
 ╚══════════════════════════════════════════════════════╝
 `);
-
   QRCode.toString(payload, { type: 'terminal', small: true }, (err, qr) => {
     if (!err) console.log(qr);
   });
-});
+}
 
+function getLocalUrl() {
+  const ifaces = os.networkInterfaces();
+  for (const iface of Object.values(ifaces)) {
+    for (const addr of iface) {
+      if (addr.family === 'IPv4' && !addr.internal) return `http://${addr.address}:${PORT}`;
+    }
+  }
+  return `http://localhost:${PORT}`;
+}
+
+server.listen(PORT, () => {
+  if (process.env.PUBLIC_URL) {
+    printBanner(process.env.PUBLIC_URL.replace(/\/$/, ''));
+    return;
+  }
+
+  if (USE_CLOUDFLARED) {
+    console.log('Starting cloudflared tunnel…');
+    const cf = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${PORT}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let tunnelUrl = null;
+    const urlRe = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
+    const onData = (data) => {
+      const line = data.toString();
+      const match = line.match(urlRe);
+      if (match && !tunnelUrl) {
+        tunnelUrl = match[0];
+        printBanner(tunnelUrl);
+      }
+    };
+    cf.stdout.on('data', onData);
+    cf.stderr.on('data', onData);
+    setTimeout(() => {
+      if (!tunnelUrl) {
+        console.warn('cloudflared did not produce a URL — showing local address');
+        printBanner(getLocalUrl());
+      }
+    }, 15000);
+    process.on('exit', () => { try { cf.kill(); } catch {} });
+    return;
+  }
+
+  printBanner(getLocalUrl());
+});

@@ -482,7 +482,6 @@ async function doConnect() {
   const port = parseInt(document.getElementById('inp-port').value) || 22;
   const pass = document.getElementById('inp-pass').value;
   if (!host) { setStatus('enter a hostname', 'error'); return; }
-
   if (ws) { try { ws.close(); } catch {} }
   const proto = backendUrl.startsWith('https') ? 'wss' : 'ws';
   const wsUrl = proto + '://' + backendUrl.replace(/^https?:\/\//, '') + '/ws';
