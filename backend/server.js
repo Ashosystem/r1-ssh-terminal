@@ -128,16 +128,26 @@ function printBanner(baseUrl) {
 
 function getLocalUrl() {
   const ifaces = os.networkInterfaces();
-  const candidates = [];
+  const preferred = [], fallback = [];
   for (const [name, addrs] of Object.entries(ifaces)) {
+    const nameLower = name.toLowerCase();
+    // Skip known VPN/virtual interfaces
+    if (nameLower.startsWith('tailscale') || nameLower.startsWith('tun') ||
+        nameLower.startsWith('utun') || nameLower.startsWith('wg') ||
+        nameLower.startsWith('docker') || nameLower.startsWith('veth') ||
+        nameLower.startsWith('br-') || nameLower === 'lo') continue;
     for (const addr of addrs) {
       if (addr.family !== 'IPv4' || addr.internal) continue;
-      if (name.startsWith('tailscale') || name.startsWith('tun') || name.startsWith('utun')) continue;
-      if (addr.address.startsWith('100.')) continue;
-      candidates.push(addr.address);
+      const ip = addr.address;
+      if (ip.startsWith('100.')) continue; // Tailscale CGNAT
+      if (ip.startsWith('172.1') || ip.startsWith('172.2') || ip.startsWith('172.3')) continue; // Docker
+      if (ip.startsWith('192.168.')) preferred.push(ip);       // typical LAN — best
+      else if (ip.startsWith('10.0.') || ip.startsWith('10.1.')) preferred.push(ip); // common LAN
+      else fallback.push(ip); // other 10.x.x.x — likely VPN, use only if nothing better
     }
   }
-  return `http://${candidates[0] || 'localhost'}:${PORT}`;
+  const ip = preferred[0] || fallback[0] || 'localhost';
+  return `http://${ip}:${PORT}`;
 }
 
 server.listen(PORT, () => {
