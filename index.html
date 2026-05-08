@@ -211,8 +211,10 @@ html, body {
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script>
-// ── Storage — synchronous, localStorage primary, creationStorage bonus ─────────
+// ── Storage — in-memory primary, localStorage/creationStorage for persistence ──
+const _mem = {};
 function storeSave(k, v) {
+  _mem[k] = v;
   try { localStorage.setItem(k, v); } catch {}
   try {
     const r = window.creationStorage.plain.setItem(k, v);
@@ -220,10 +222,11 @@ function storeSave(k, v) {
   } catch {}
 }
 function storeLoad(k) {
-  try { const v = localStorage.getItem(k); if (v !== null) return v; } catch {}
+  if (_mem[k]) return _mem[k];
+  try { const v = localStorage.getItem(k); if (v) { _mem[k] = v; return v; } } catch {}
   try {
     const v = window.creationStorage.plain.getItem(k);
-    if (v && typeof v.then !== 'function') return v;
+    if (v && typeof v.then !== 'function' && v) { _mem[k] = v; return v; }
   } catch {}
   return null;
 }
