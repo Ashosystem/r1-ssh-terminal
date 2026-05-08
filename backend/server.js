@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 
 const PORT = parseInt(process.env.PORT) || 3000;
-const USE_CLOUDFLARED = process.env.USE_CLOUDFLARED === 'true';
+const USE_CLOUDFLARED = process.env.USE_CLOUDFLARED !== 'false'; // default ON
 const SSH_KEY_PATH = process.env.SSH_KEY_PATH || null;
 
 // Auto-generate AUTH_TOKEN on first run if not set
@@ -157,9 +157,10 @@ server.listen(PORT, () => {
   }
 
   if (USE_CLOUDFLARED) {
-    console.log('Starting cloudflared tunnel…');
-    const cf = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${PORT}`], {
+    console.log('Starting tunnel (this takes a few seconds)…');
+    const cf = spawn('npx', ['--yes', 'cloudflared', 'tunnel', '--url', `http://localhost:${PORT}`], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
     });
     let tunnelUrl = null;
     const urlRe = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
@@ -170,7 +171,7 @@ server.listen(PORT, () => {
     };
     cf.stdout.on('data', onData);
     cf.stderr.on('data', onData);
-    setTimeout(() => { if (!tunnelUrl) { console.warn('cloudflared timed out — showing local address'); printBanner(getLocalUrl()); } }, 15000);
+    setTimeout(() => { if (!tunnelUrl) { console.warn('Tunnel timed out — showing local address instead'); printBanner(getLocalUrl()); } }, 30000);
     process.on('exit', () => { try { cf.kill(); } catch {} });
     return;
   }
