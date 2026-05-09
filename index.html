@@ -156,8 +156,8 @@ html, body {
   </div>
   <button id="btn-scan-qr" onclick="startScan()" style="margin-top:4px;">📷 Scan QR from terminal</button>
   <p style="font-size:9px;color:#555;margin:1px 0;">— or enter manually —</p>
-  <input class="setup-input" id="inp-backend" type="url" placeholder="Backend URL" autocomplete="off" spellcheck="false">
-  <input class="setup-input" id="inp-token" type="text" placeholder="Auth token" autocomplete="off" spellcheck="false">
+  <input class="setup-input" id="inp-backend" type="url" placeholder="Backend URL" autocomplete="off" spellcheck="false" inputmode="none">
+  <input class="setup-input" id="inp-token" type="text" placeholder="Auth token" autocomplete="off" spellcheck="false" inputmode="none">
   <button id="btn-setup-save" onclick="saveSetup()">Save &amp; Continue</button>
 </div>
 
@@ -176,12 +176,12 @@ html, body {
   <select id="sel-conn" class="conn-input" style="display:none;" onchange="fillFromSaved()">
     <option value="">— saved connections —</option>
   </select>
-  <input class="conn-input" id="inp-host" type="text" placeholder="Hostname or IP" autocomplete="off" spellcheck="false">
+  <input class="conn-input" id="inp-host" type="text" placeholder="Hostname or IP" autocomplete="off" spellcheck="false" inputmode="none">
   <div class="conn-row">
-    <input class="conn-input" id="inp-user" type="text" placeholder="User (root)" autocomplete="off">
-    <input class="conn-input" id="inp-port" type="number" placeholder="22" style="width:54px;flex:none;">
+    <input class="conn-input" id="inp-user" type="text" placeholder="User (root)" autocomplete="off" inputmode="none">
+    <input class="conn-input" id="inp-port" type="number" placeholder="22" style="width:54px;flex:none;" inputmode="none">
   </div>
-  <input class="conn-input" id="inp-pass" type="password" placeholder="Password" autocomplete="off">
+  <input class="conn-input" id="inp-pass" type="password" placeholder="Password" autocomplete="off" inputmode="none">
   <button id="btn-connect" onclick="doConnect()">Connect</button>
 </div>
 
@@ -296,9 +296,11 @@ let currentScreen = 'setup';
 function showSetup() {
   hideAll();
   currentScreen = 'setup';
-  setupScr.style.display = 'flex';
-  btnAction.textContent  = '⚙';
+  setupScr.style.display   = 'flex';
+  virtualKbd.style.display = 'flex';
+  btnAction.textContent    = '⚙';
   setStatus('Setup');
+  setTimeout(() => document.getElementById('inp-backend').focus(), 50);
   const saved = storeLoad('r1term_backend');
   if (saved) document.getElementById('inp-backend').value = saved;
   const tok = storeLoad('r1term_token');
@@ -372,8 +374,10 @@ function showConnect() {
   hideAll();
   currentScreen = 'connect';
   connectScr.style.display = 'flex';
+  virtualKbd.style.display = 'flex';
   btnAction.textContent    = '⚙';
   setStatus('ready');
+  setTimeout(() => document.getElementById('inp-host').focus(), 50);
   const conns = loadConnections();
   const sel = document.getElementById('sel-conn');
   if (conns.length > 0) {
@@ -540,6 +544,29 @@ window.onPluginMessage = (msg) => {
 };
 
 // ── DOM Keyboard ───────────────────────────────────────────────────────────────
+function sendKey(char) {
+  if (currentScreen === 'terminal') {
+    sendToTerm(char);
+    return;
+  }
+  const el = document.activeElement;
+  if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+  if (char === '\x7f' || char === '\b') {
+    const s = el.selectionStart, e = el.selectionEnd;
+    if (s !== e) { document.execCommand('delete'); }
+    else if (s > 0) { el.setSelectionRange(s - 1, s); document.execCommand('delete'); }
+  } else if (char === '\r' || char === '\n') {
+    // Enter on setup/connect: move to next input or trigger the screen's primary button
+    const inputs = Array.from(document.querySelectorAll('#' + (currentScreen === 'setup' ? 'setup' : 'connect') + '-screen input'));
+    const idx = inputs.indexOf(el);
+    if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
+    else if (currentScreen === 'setup') document.getElementById('btn-setup-save').click();
+    else if (currentScreen === 'connect') document.getElementById('btn-connect').click();
+  } else {
+    document.execCommand('insertText', false, char);
+  }
+}
+
 (function() {
   let shifted = false, symMode = false;
   const letters = [['q','w','e','r','t','y','u','i','o','p'],['a','s','d','f','g','h','j','k','l'],['z','x','c','v','b','n','m']];
@@ -563,10 +590,10 @@ window.onPluginMessage = (msg) => {
     const id = key.id, v = key.dataset.k;
     if      (id==='kbd-shift') { shifted=!shifted; symMode=false; applyShift(); }
     else if (id==='kbd-sym')   { symMode=!symMode; applySymMode(); }
-    else if (id==='kbd-back')  { sendToTerm('\x7f'); }
-    else if (id==='kbd-space') { sendToTerm(' '); }
-    else if (id==='kbd-enter') { sendToTerm('\r'); }
-    else if (v) { sendToTerm((shifted&&!symMode)?v.toUpperCase():v); if(shifted&&!symMode){shifted=false;applyShift();} }
+    else if (id==='kbd-back')  { sendKey('\x7f'); }
+    else if (id==='kbd-space') { sendKey(' '); }
+    else if (id==='kbd-enter') { sendKey('\r'); }
+    else if (v) { sendKey((shifted&&!symMode)?v.toUpperCase():v); if(shifted&&!symMode){shifted=false;applyShift();} }
   });
 })();
 
