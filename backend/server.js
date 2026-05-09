@@ -30,22 +30,7 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-app.get('/host', (_req, res) => {
-  const ifaces = os.networkInterfaces();
-  const ips = [];
-  for (const addrs of Object.values(ifaces)) {
-    for (const addr of addrs) {
-      if (addr.family !== 'IPv4' || addr.internal) continue;
-      ips.push(addr.address);
-    }
-  }
-  // Prefer Tailscale (100.x), then LAN (192.168/10.x), then others
-  ips.sort((a, b) => {
-    const rank = ip => ip.startsWith('100.') ? 0 : (ip.startsWith('192.168.') || ip.startsWith('10.')) ? 1 : 2;
-    return rank(a) - rank(b);
-  });
-  res.json({ hostname: os.hostname(), user: os.userInfo().username, port: 22, ips });
-});
+app.get('/host', (_req, res) => res.json(getHostInfo()));
 
 wss.on('connection', (ws) => {
   let authed = false;
@@ -133,8 +118,25 @@ wss.on('connection', (ws) => {
   });
 });
 
+function getHostInfo() {
+  const ifaces = os.networkInterfaces();
+  const ips = [];
+  for (const addrs of Object.values(ifaces)) {
+    for (const addr of addrs) {
+      if (addr.family !== 'IPv4' || addr.internal) continue;
+      ips.push(addr.address);
+    }
+  }
+  ips.sort((a, b) => {
+    const rank = ip => ip.startsWith('100.') ? 0 : (ip.startsWith('192.168.') || ip.startsWith('10.')) ? 1 : 2;
+    return rank(a) - rank(b);
+  });
+  return { hostname: os.hostname(), user: os.userInfo().username, port: 22, ip: ips[0] || null };
+}
+
 function printBanner(baseUrl) {
-  const payload = JSON.stringify({ url: baseUrl, token: AUTH_TOKEN });
+  const hostInfo = getHostInfo();
+  const payload = JSON.stringify({ url: baseUrl, token: AUTH_TOKEN, host: hostInfo });
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║  r1-ssh-terminal backend running                     ║

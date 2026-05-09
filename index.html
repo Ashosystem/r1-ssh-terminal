@@ -330,7 +330,7 @@ function saveSetup() {
   if (!url || !tok) { setStatus('fill both fields', 'error'); return; }
   storeSave('r1term_backend', url);
   storeSave('r1term_token', tok);
-  fetchBackendHost(url);
+  fetchBackendHost(url); // also saves host if /host responds
   showConnect();
 }
 
@@ -372,7 +372,8 @@ function scanFrame() {
           document.getElementById('inp-token').value = data.token;
           storeSave('r1term_backend', data.url);
           storeSave('r1term_token', data.token);
-          fetchBackendHost(data.url);
+          if (data.host && data.host.ip) saveConnection(data.host.ip, data.host.user || 'root', data.host.port || 22, data.host.hostname + ' (backend)');
+          else fetchBackendHost(data.url);
           showConnect();
           return;
         }
