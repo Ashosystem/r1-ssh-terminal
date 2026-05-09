@@ -35,11 +35,15 @@ html, body {
   font-size: 9px; padding: 2px 5px; border-radius: 3px; cursor: pointer; margin-left: 3px;
 }
 
+/* Keyboard open: shrink content screens to leave room */
+#app.kbd-open #setup-screen,
+#app.kbd-open #connect-screen { max-height: 154px; }
+
 /* Setup screen */
 #setup-screen {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: flex-start; gap: 5px; padding: 10px 12px;
-  overflow-y: auto;
+  overflow-y: auto; min-height: 0;
 }
 #setup-screen h2 { font-size: 11px; color: #7ab8e8; margin-bottom: 3px; }
 .setup-input {
@@ -75,7 +79,7 @@ html, body {
 #connect-screen {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 4px; padding: 8px 12px;
-  overflow-y: auto;
+  overflow-y: auto; min-height: 0;
 }
 #connect-screen h2 { font-size: 11px; color: #aaa; margin-bottom: 2px; }
 .conn-input {
@@ -114,7 +118,7 @@ html, body {
 /* Keyboard */
 #virtual-keyboard {
   display: none; flex-direction: column; padding: 2px 4px; gap: 2px;
-  background: #111; flex-shrink: 0;
+  background: #111; flex-shrink: 0; position: relative;
 }
 .kbd-row { display: flex; gap: 2px; justify-content: center; height: 24px; }
 .key {
@@ -283,6 +287,7 @@ function hideAll() {
   navRow.style.display     = 'none';
   virtualKbd.style.display = 'none';
   btnKbd.style.display     = 'none';
+  appEl.classList.remove('kbd-open');
 }
 
 function handleAction() {
@@ -298,6 +303,7 @@ function showSetup() {
   currentScreen = 'setup';
   setupScr.style.display   = 'flex';
   virtualKbd.style.display = 'flex';
+  appEl.classList.add('kbd-open');
   btnAction.textContent    = '⚙';
   setStatus('Setup');
   setTimeout(() => document.getElementById('inp-backend').focus(), 50);
@@ -375,6 +381,7 @@ function showConnect() {
   currentScreen = 'connect';
   connectScr.style.display = 'flex';
   virtualKbd.style.display = 'flex';
+  appEl.classList.add('kbd-open');
   btnAction.textContent    = '⚙';
   setStatus('ready');
   setTimeout(() => document.getElementById('inp-host').focus(), 50);
