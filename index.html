@@ -524,26 +524,41 @@ document.querySelectorAll('.nk[data-seq]').forEach(btn => {
 const pttBtn = document.getElementById('ptt');
 let pttActive = false;
 let pttLongPress = false;
-function pttTap() {
-  if (pttLongPress) { pttLongPress = false; return; }
-  if (termWrap.style.display === 'block') {
-    sendToTerm('\r');
-    return;
-  }
-  pttActive = !pttActive;
-  pttBtn.classList.toggle('active', pttActive);
-  pttBtn.textContent = pttActive ? '●REC' : 'PTT';
-  try { CreationVoiceHandler.postMessage(pttActive ? 'start' : 'stop'); } catch {}
-}
-pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); pttTap(); });
-pttBtn.addEventListener('click', pttTap);
-window.addEventListener('longPressStart', () => {
+let pttHoldTimer = null;
+
+function pttStartRecording() {
   pttLongPress = true;
-  if (!pttActive) { pttActive = true; pttBtn.classList.add('active'); pttBtn.textContent = '●REC'; try { CreationVoiceHandler.postMessage('start'); } catch {} }
+  pttActive = true;
+  pttBtn.classList.add('active');
+  pttBtn.textContent = '●REC';
+  try { CreationVoiceHandler.postMessage('start'); } catch {}
+}
+function pttStopRecording() {
+  pttActive = false;
+  pttBtn.classList.remove('active');
+  pttBtn.textContent = 'PTT';
+  try { CreationVoiceHandler.postMessage('stop'); } catch {}
+}
+
+pttBtn.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  pttHoldTimer = setTimeout(pttStartRecording, 400);
 });
-window.addEventListener('longPressEnd', () => {
-  if (pttActive) { pttActive = false; pttBtn.classList.remove('active'); pttBtn.textContent = 'PTT'; try { CreationVoiceHandler.postMessage('stop'); } catch {} }
+pttBtn.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  if (pttHoldTimer) { clearTimeout(pttHoldTimer); pttHoldTimer = null; }
+  if (pttLongPress) {
+    pttLongPress = false;
+    pttStopRecording();
+  } else {
+    // Short tap: send Enter in terminal
+    if (termWrap.style.display === 'block') sendToTerm('\r');
+  }
 });
+
+// Physical side button support
+window.addEventListener('longPressStart', pttStartRecording);
+window.addEventListener('longPressEnd', () => { if (pttActive) { pttLongPress = false; pttStopRecording(); } });
 window.onPluginMessage = (msg) => {
   try {
     const data = typeof msg === 'string' ? JSON.parse(msg) : msg;
