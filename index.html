@@ -593,6 +593,8 @@ function sendKey(char) {
     });
     if (symBtn) symBtn.textContent = symMode ? 'ABC' : '?123';
   }
+  document.getElementById('virtual-keyboard').addEventListener('mousedown', function(e) { e.preventDefault(); });
+  document.getElementById('virtual-keyboard').addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
   document.getElementById('virtual-keyboard').addEventListener('click', function(e) {
     const key = e.target.closest('.key'); if (!key) return;
     const id = key.id, v = key.dataset.k;
