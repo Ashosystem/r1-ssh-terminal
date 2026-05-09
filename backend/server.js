@@ -9,11 +9,11 @@ const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { spawn, spawnSync, execSync } = require('child_process');
+const { spawn } = require('child_process');
 
 const PORT = parseInt(process.env.PORT) || 3000;
 const USE_CLOUDFLARED = process.env.USE_CLOUDFLARED !== 'false'; // default ON
-let SSH_KEY_PATH = process.env.SSH_KEY_PATH || null;
+const SSH_KEY_PATH = process.env.SSH_KEY_PATH || null;
 
 // Auto-generate AUTH_TOKEN on first run if not set
 let AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -177,68 +177,6 @@ function getLocalUrl() {
   return `http://${ip}:${PORT}`;
 }
 
-// ── Auto SSH key setup ─────────────────────────────────────────────────────────
-function isWindowsAdmin() {
-  if (process.platform !== 'win32') return false;
-  try { return execSync('whoami /groups', { encoding: 'utf8' }).includes('S-1-5-32-544'); } catch { return false; }
-}
-
-async function autoSetupSshKey() {
-  const keyDir  = path.join(os.homedir(), '.ssh');
-  const keyPath = path.join(keyDir, 'r1terminal_key');
-  const pubPath = keyPath + '.pub';
-
-  fs.mkdirSync(keyDir, { recursive: true });
-  if (process.platform !== 'win32') { try { fs.chmodSync(keyDir, 0o700); } catch {} }
-
-  if (!fs.existsSync(keyPath)) {
-    console.log('  [ssh-setup] Generating key…');
-    const r = spawnSync('ssh-keygen', ['-t', 'ed25519', '-f', keyPath, '-N', '', '-q'], { encoding: 'utf8' });
-    if (r.status !== 0) {
-      console.warn('  [ssh-setup] ssh-keygen failed — self-SSH unavailable:', (r.stderr || '').trim());
-      return null;
-    }
-  }
-
-  const pubKey = fs.readFileSync(pubPath, 'utf8').trim();
-  const winAdmin = isWindowsAdmin();
-  const authPath = (process.platform === 'win32' && winAdmin)
-    ? 'C:\\ProgramData\\ssh\\administrators_authorized_keys'
-    : path.join(os.homedir(), '.ssh', 'authorized_keys');
-
-  fs.mkdirSync(path.dirname(authPath), { recursive: true });
-  let existing = '';
-  try { existing = fs.readFileSync(authPath, 'utf8'); } catch {}
-  if (!existing.includes(pubKey)) {
-    fs.appendFileSync(authPath, (existing && !existing.endsWith('\n') ? '\n' : '') + pubKey + '\n');
-    console.log(`  [ssh-setup] Public key added to ${authPath}`);
-  }
-
-  if (process.platform !== 'win32') {
-    try { fs.chmodSync(authPath, 0o600); } catch {}
-  } else if (winAdmin) {
-    try { execSync(`icacls "${authPath}" /inheritance:r /grant "SYSTEM:(F)" /grant "BUILTIN\\Administrators:(F)"`, { stdio: 'ignore' }); } catch {}
-  }
-
-  // Persist to .env so future runs skip setup
-  const envPath = path.join(__dirname, '.env');
-  try {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    if (!envContent.includes('SSH_KEY_PATH=')) {
-      fs.appendFileSync(envPath, `\nSSH_KEY_PATH=${keyPath.replace(/\\/g, '/')}\n`);
-    }
-  } catch {}
-
-  return keyPath;
-}
-
-(async () => {
-  if (!SSH_KEY_PATH) {
-    console.log('  [ssh-setup] SSH_KEY_PATH not set — auto-configuring self-SSH key…');
-    const k = await autoSetupSshKey();
-    if (k) { SSH_KEY_PATH = k; console.log(`  [ssh-setup] Ready (key: ${k})`); }
-  }
-
 server.listen(PORT, () => {
   if (process.env.PUBLIC_URL) {
     printBanner(process.env.PUBLIC_URL.replace(/\/$/, ''));
@@ -267,4 +205,3 @@ server.listen(PORT, () => {
 
   printBanner(getLocalUrl());
 });
-})();

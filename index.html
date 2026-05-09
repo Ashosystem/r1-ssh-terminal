@@ -263,15 +263,6 @@ function saveConnection(host, user, port, label) {
   storeSave('r1term_connections', JSON.stringify(conns));
 }
 
-async function fetchBackendHost(backendUrl) {
-  try {
-    const res = await fetch(backendUrl + '/host');
-    if (!res.ok) return;
-    const d = await res.json();
-    if (!d.hostname || !d.ips || !d.ips.length) return;
-    saveConnection(d.ips[0], d.user || 'root', d.port || 22, d.hostname + ' (backend)');
-  } catch {}
-}
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let ws = null, term = null, fitAddon = null;
@@ -330,7 +321,6 @@ function saveSetup() {
   if (!url || !tok) { setStatus('fill both fields', 'error'); return; }
   storeSave('r1term_backend', url);
   storeSave('r1term_token', tok);
-  fetchBackendHost(url); // also saves host if /host responds
   showConnect();
 }
 
@@ -372,8 +362,6 @@ function scanFrame() {
           document.getElementById('inp-token').value = data.token;
           storeSave('r1term_backend', data.url);
           storeSave('r1term_token', data.token);
-          if (data.host && data.host.ip) saveConnection(data.host.ip, data.host.user || 'root', data.host.port || 22, data.host.hostname + ' (backend)');
-          else fetchBackendHost(data.url);
           showConnect();
           return;
         }
