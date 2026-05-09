@@ -306,7 +306,6 @@ function showSetup() {
   appEl.classList.add('kbd-open');
   btnAction.textContent    = '⚙';
   setStatus('Setup');
-  setTimeout(() => document.getElementById('inp-backend').focus(), 50);
   const saved = storeLoad('r1term_backend');
   if (saved) document.getElementById('inp-backend').value = saved;
   const tok = storeLoad('r1term_token');
@@ -384,7 +383,6 @@ function showConnect() {
   appEl.classList.add('kbd-open');
   btnAction.textContent    = '⚙';
   setStatus('ready');
-  setTimeout(() => document.getElementById('inp-host').focus(), 50);
   const conns = loadConnections();
   const sel = document.getElementById('sel-conn');
   if (conns.length > 0) {
@@ -552,25 +550,28 @@ window.onPluginMessage = (msg) => {
 
 // ── DOM Keyboard ───────────────────────────────────────────────────────────────
 function sendKey(char) {
-  if (currentScreen === 'terminal') {
-    sendToTerm(char);
-    return;
-  }
+  if (currentScreen === 'terminal') { sendToTerm(char); return; }
   const el = document.activeElement;
   if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+  const s = el.selectionStart ?? el.value.length;
+  const e = el.selectionEnd ?? s;
   if (char === '\x7f' || char === '\b') {
-    const s = el.selectionStart, e = el.selectionEnd;
-    if (s !== e) { document.execCommand('delete'); }
-    else if (s > 0) { el.setSelectionRange(s - 1, s); document.execCommand('delete'); }
+    if (s !== e) {
+      el.value = el.value.slice(0, s) + el.value.slice(e);
+      el.selectionStart = el.selectionEnd = s;
+    } else if (s > 0) {
+      el.value = el.value.slice(0, s - 1) + el.value.slice(s);
+      el.selectionStart = el.selectionEnd = s - 1;
+    }
   } else if (char === '\r' || char === '\n') {
-    // Enter on setup/connect: move to next input or trigger the screen's primary button
     const inputs = Array.from(document.querySelectorAll('#' + (currentScreen === 'setup' ? 'setup' : 'connect') + '-screen input'));
     const idx = inputs.indexOf(el);
     if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
     else if (currentScreen === 'setup') document.getElementById('btn-setup-save').click();
     else if (currentScreen === 'connect') document.getElementById('btn-connect').click();
   } else {
-    document.execCommand('insertText', false, char);
+    el.value = el.value.slice(0, s) + char + el.value.slice(e);
+    el.selectionStart = el.selectionEnd = s + char.length;
   }
 }
 
