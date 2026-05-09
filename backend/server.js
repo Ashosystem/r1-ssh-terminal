@@ -30,6 +30,23 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
+app.get('/host', (_req, res) => {
+  const ifaces = os.networkInterfaces();
+  const ips = [];
+  for (const addrs of Object.values(ifaces)) {
+    for (const addr of addrs) {
+      if (addr.family !== 'IPv4' || addr.internal) continue;
+      ips.push(addr.address);
+    }
+  }
+  // Prefer Tailscale (100.x), then LAN (192.168/10.x), then others
+  ips.sort((a, b) => {
+    const rank = ip => ip.startsWith('100.') ? 0 : (ip.startsWith('192.168.') || ip.startsWith('10.')) ? 1 : 2;
+    return rank(a) - rank(b);
+  });
+  res.json({ hostname: os.hostname(), user: os.userInfo().username, port: 22, ips });
+});
+
 wss.on('connection', (ws) => {
   let authed = false;
   const ssh = new Client();

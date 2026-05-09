@@ -254,11 +254,23 @@ function loadConnections() {
   if (!raw) return [];
   try { return JSON.parse(raw); } catch { return []; }
 }
-function saveConnection(host, user, port) {
+function saveConnection(host, user, port, label) {
   const conns = loadConnections().filter(c => !(c.host === host && c.user === user && c.port === port));
-  conns.unshift({ host, user, port });
+  const entry = { host, user, port };
+  if (label) entry.label = label;
+  conns.unshift(entry);
   if (conns.length > 10) conns.length = 10;
   storeSave('r1term_connections', JSON.stringify(conns));
+}
+
+async function fetchBackendHost(backendUrl) {
+  try {
+    const res = await fetch(backendUrl + '/host');
+    if (!res.ok) return;
+    const d = await res.json();
+    if (!d.hostname || !d.ips || !d.ips.length) return;
+    saveConnection(d.ips[0], d.user || 'root', d.port || 22, d.hostname + ' (backend)');
+  } catch {}
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -318,6 +330,7 @@ function saveSetup() {
   if (!url || !tok) { setStatus('fill both fields', 'error'); return; }
   storeSave('r1term_backend', url);
   storeSave('r1term_token', tok);
+  fetchBackendHost(url);
   showConnect();
 }
 
@@ -359,6 +372,7 @@ function scanFrame() {
           document.getElementById('inp-token').value = data.token;
           storeSave('r1term_backend', data.url);
           storeSave('r1term_token', data.token);
+          fetchBackendHost(data.url);
           showConnect();
           return;
         }
@@ -387,7 +401,7 @@ function showConnect() {
   const sel = document.getElementById('sel-conn');
   if (conns.length > 0) {
     sel.innerHTML = '<option value="">— saved connections —</option>' +
-      conns.map((c, i) => `<option value="${i}">${c.user}@${c.host}${c.port !== 22 ? ':' + c.port : ''}</option>`).join('');
+      conns.map((c, i) => `<option value="${i}">${c.label || (c.user + '@' + c.host + (c.port !== 22 ? ':' + c.port : ''))}</option>`).join('');
     sel.style.display = '';
     document.getElementById('inp-host').value = conns[0].host;
     document.getElementById('inp-user').value = conns[0].user;
