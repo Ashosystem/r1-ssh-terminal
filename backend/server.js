@@ -88,8 +88,16 @@ wss.on('connection', (ws) => {
           sshConfig.privateKey = key;
         } else if (password) {
           sshConfig.password = password;
-        } else if (SSH_KEY_PATH && fs.existsSync(SSH_KEY_PATH)) {
-          sshConfig.privateKey = fs.readFileSync(SSH_KEY_PATH);
+        } else if (SSH_KEY_PATH) {
+          const resolvedKeyPath = SSH_KEY_PATH.replace(/\\/g, '/');
+          console.log(`SSH_KEY_PATH set: "${SSH_KEY_PATH}" → resolved: "${resolvedKeyPath}" exists=${fs.existsSync(resolvedKeyPath)}`);
+          if (fs.existsSync(resolvedKeyPath)) {
+            sshConfig.privateKey = fs.readFileSync(resolvedKeyPath);
+            console.log(`Using key file (${sshConfig.privateKey.length} bytes)`);
+          } else {
+            console.log(`SSH_KEY_PATH file not found — falling back to no credentials`);
+            ws.send(JSON.stringify({ type: 'error', message: `Key file not found: ${resolvedKeyPath}` })); ws.close(); return;
+          }
         } else {
           ws.send(JSON.stringify({ type: 'error', message: 'No credentials provided' })); ws.close(); return;
         }
