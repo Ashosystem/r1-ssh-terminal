@@ -411,18 +411,19 @@ function fillFromSaved() {
 function showTerminal() {
   hideAll();
   currentScreen = 'terminal';
+  kbdVisible = false;
   termWrap.style.display   = 'block';
   navRow.style.display     = 'flex';
-  virtualKbd.style.display = 'flex';
+  virtualKbd.style.display = 'none';
   btnKbd.style.display     = 'inline-block';
+  btnKbd.textContent = '⌨+';
+  btnKbd.style.color = '#7ab8e8';
   btnAction.textContent    = '✕';
-  // Re-fit after keyboard is rendered, then snap to bottom
   setTimeout(() => { resizeTerm(); if (term) term.scrollToBottom(); }, 80);
 }
 
 function toggleKbd() {
   kbdVisible = !kbdVisible;
-  navRow.style.display     = kbdVisible ? 'flex' : 'none';
   virtualKbd.style.display = kbdVisible ? 'flex' : 'none';
   btnKbd.textContent = kbdVisible ? '⌨' : '⌨+';
   btnKbd.style.color = kbdVisible ? '#aaa' : '#7ab8e8';
@@ -441,7 +442,7 @@ function initTerm() {
   term = new Terminal({
     fontSize: 9, fontFamily: 'monospace',
     theme: { background: '#0d0d0d', foreground: '#e0e0e0', cursor: '#aaa' },
-    cursorBlink: true, scrollback: 200,
+    cursorBlink: true, scrollback: 2000,
   });
   fitAddon = new FitAddon.FitAddon();
   term.loadAddon(fitAddon);
