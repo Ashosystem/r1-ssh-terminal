@@ -416,6 +416,8 @@ function showTerminal() {
   virtualKbd.style.display = 'flex';
   btnKbd.style.display     = 'inline-block';
   btnAction.textContent    = '✕';
+  // Re-fit after keyboard is rendered, then snap to bottom
+  setTimeout(() => { resizeTerm(); if (term) term.scrollToBottom(); }, 80);
 }
 
 function toggleKbd() {
