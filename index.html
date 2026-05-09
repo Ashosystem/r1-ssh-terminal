@@ -516,13 +516,15 @@ function doConnect() {
 }
 
 // ── Nav row ────────────────────────────────────────────────────────────────────
-document.querySelectorAll('.nk[data-seq]').forEach(btn =>
-  btn.addEventListener('click', () => sendToTerm(btn.dataset.seq)));
+document.querySelectorAll('.nk[data-seq]').forEach(btn => {
+  btn.addEventListener('touchend', (e) => { e.preventDefault(); sendToTerm(btn.dataset.seq); });
+  btn.addEventListener('click', () => sendToTerm(btn.dataset.seq));
+});
 
 const pttBtn = document.getElementById('ptt');
 let pttActive = false;
 let pttLongPress = false;
-pttBtn.addEventListener('click', () => {
+function pttTap() {
   if (pttLongPress) { pttLongPress = false; return; }
   if (termWrap.style.display === 'block') {
     sendToTerm('\r');
@@ -532,7 +534,9 @@ pttBtn.addEventListener('click', () => {
   pttBtn.classList.toggle('active', pttActive);
   pttBtn.textContent = pttActive ? '●REC' : 'PTT';
   try { CreationVoiceHandler.postMessage(pttActive ? 'start' : 'stop'); } catch {}
-});
+}
+pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); pttTap(); });
+pttBtn.addEventListener('click', pttTap);
 window.addEventListener('longPressStart', () => {
   pttLongPress = true;
   if (!pttActive) { pttActive = true; pttBtn.classList.add('active'); pttBtn.textContent = '●REC'; try { CreationVoiceHandler.postMessage('start'); } catch {} }
