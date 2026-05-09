@@ -593,9 +593,14 @@ function sendKey(char) {
     });
     if (symBtn) symBtn.textContent = symMode ? 'ABC' : '?123';
   }
-  document.getElementById('virtual-keyboard').addEventListener('mousedown', function(e) { e.preventDefault(); });
-  document.getElementById('virtual-keyboard').addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
-  document.getElementById('virtual-keyboard').addEventListener('click', function(e) {
+  const kbdEl = document.getElementById('virtual-keyboard');
+  // mousedown preventDefault keeps focus on inputs for mouse users (desktop testing)
+  kbdEl.addEventListener('mousedown', function(e) { e.preventDefault(); });
+  // touchstart preventDefault blocks simulated mouse events (prevents focus steal on touch)
+  // but suppresses 'click' — so key input uses 'touchend' on touch devices
+  kbdEl.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+
+  function handleKey(e) {
     const key = e.target.closest('.key'); if (!key) return;
     const id = key.id, v = key.dataset.k;
     if      (id==='kbd-shift') { shifted=!shifted; symMode=false; applyShift(); }
@@ -604,7 +609,9 @@ function sendKey(char) {
     else if (id==='kbd-space') { sendKey(' '); }
     else if (id==='kbd-enter') { sendKey('\r'); }
     else if (v) { sendKey((shifted&&!symMode)?v.toUpperCase():v); if(shifted&&!symMode){shifted=false;applyShift();} }
-  });
+  }
+  kbdEl.addEventListener('touchend', handleKey);  // touch devices (R1)
+  kbdEl.addEventListener('click', handleKey);      // mouse / desktop fallback
 })();
 
 // ── Landscape ─────────────────────────────────────────────────────────────────
