@@ -59,8 +59,14 @@ Enter any SSH host, username, port, and password, then tap **Connect**. The last
 Set `SSH_KEY_PATH` in `backend/.env` to authenticate without typing a password on the R1:
 
 ```env
+# Linux/macOS
 SSH_KEY_PATH=/home/user/.ssh/id_ed25519
+
+# Windows — use forward slashes
+SSH_KEY_PATH=C:/Users/YourName/.ssh/id_ed25519
 ```
+
+Leave the password field blank on the R1 connect screen when using a key.
 
 ## License
 
