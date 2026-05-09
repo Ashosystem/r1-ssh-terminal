@@ -291,8 +291,11 @@ function handleAction() {
 }
 
 // ── Setup screen ───────────────────────────────────────────────────────────────
+let currentScreen = 'setup';
+
 function showSetup() {
   hideAll();
+  currentScreen = 'setup';
   setupScr.style.display = 'flex';
   btnAction.textContent  = '⚙';
   setStatus('Setup');
@@ -367,6 +370,7 @@ function stopScan() {
 // ── Connect screen ─────────────────────────────────────────────────────────────
 function showConnect() {
   hideAll();
+  currentScreen = 'connect';
   connectScr.style.display = 'flex';
   btnAction.textContent    = '⚙';
   setStatus('ready');
@@ -397,6 +401,7 @@ function fillFromSaved() {
 // ── Terminal screen ────────────────────────────────────────────────────────────
 function showTerminal() {
   hideAll();
+  currentScreen = 'terminal';
   termWrap.style.display   = 'block';
   navRow.style.display     = 'flex';
   virtualKbd.style.display = 'flex';
@@ -607,6 +612,29 @@ async function setLandscape(on) {
     tx0 = e.touches[0].clientX;
   }, { passive: false });
 })();
+
+// ── Scroll wheel ──────────────────────────────────────────────────────────────
+function handleScroll(direction) {
+  if (currentScreen === 'terminal') {
+    if (term) term.scrollLines(direction === 'up' ? -3 : 3);
+  } else if (currentScreen === 'setup') {
+    setupScr.scrollBy({ top: direction === 'up' ? -40 : 40, behavior: 'smooth' });
+  } else if (currentScreen === 'connect') {
+    connectScr.scrollBy({ top: direction === 'up' ? -40 : 40, behavior: 'smooth' });
+  }
+}
+
+// R1 hardware scroll events (inverted: scrollUp fires when wheel turns down)
+window.addEventListener('scrollUp',   () => handleScroll('down'));
+window.addEventListener('scrollDown', () => handleScroll('up'));
+
+// Keyboard fallback for desktop testing
+document.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (currentScreen === 'terminal') return; // let xterm handle keys in terminal
+  if (e.key === 'ArrowUp')   { e.preventDefault(); window.dispatchEvent(new Event('scrollUp')); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); window.dispatchEvent(new Event('scrollDown')); }
+});
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 (async function init() {
