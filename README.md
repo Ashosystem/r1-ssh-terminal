@@ -1,6 +1,6 @@
 # r1-ssh-terminal
 
-An SSH terminal Creation for the [Rabbit R1](https://www.rabbit.tech/). Run a backend on any machine, scan a QR on your R1, and get a full SSH terminal.
+An SSH terminal Creation for the [Rabbit R1](https://www.rabbit.tech/). Run a backend on any machine, scan a QR on your R1, and use that machine to target other IP addresses. For the moment it is not feasibile to have the backend host machine's terminal be usable in the app. It simply points outward for now.  
 
 ## How it works
 
