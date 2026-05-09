@@ -111,7 +111,7 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   touch-action: manipulation; user-select: none; -webkit-user-select: none;
 }
-.nk:active { background: #555; }
+.nk:active, .nk.pressed { background: #666; transform: scale(0.92); }
 #ptt { background: #1a3a5c; border-color: #2a5a8c; color: #7ab8e8; }
 #ptt.active { background: #8b0000; border-color: #cc0000; color: #ff6666; }
 
@@ -127,7 +127,7 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   touch-action: manipulation; user-select: none; -webkit-user-select: none;
 }
-.key:active { background: #555; }
+.key:active, .key.pressed { background: #666; transform: scale(0.92); }
 .key.wide   { flex: 1.6; font-size: 9px; }
 .key.space  { flex: 4; }
 .key.action { background: #3a6abf; border-color: #2a4a9f; }
@@ -517,6 +517,7 @@ function doConnect() {
 
 // ── Nav row ────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.nk[data-seq]').forEach(btn => {
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); btn.classList.add('pressed'); setTimeout(() => btn.classList.remove('pressed'), 120); }, { passive: false });
   btn.addEventListener('touchend', (e) => { e.preventDefault(); sendToTerm(btn.dataset.seq); });
   btn.addEventListener('click', () => sendToTerm(btn.dataset.seq));
 });
@@ -617,9 +618,12 @@ function sendKey(char) {
   const kbdEl = document.getElementById('virtual-keyboard');
   // mousedown preventDefault keeps focus on inputs for mouse users (desktop testing)
   kbdEl.addEventListener('mousedown', function(e) { e.preventDefault(); });
-  // touchstart preventDefault blocks simulated mouse events (prevents focus steal on touch)
-  // but suppresses 'click' — so key input uses 'touchend' on touch devices
-  kbdEl.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+  // touchstart: prevent focus steal + add visual press feedback
+  kbdEl.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    const key = e.target.closest('.key');
+    if (key) { key.classList.add('pressed'); setTimeout(() => key.classList.remove('pressed'), 120); }
+  }, { passive: false });
 
   function handleKey(e) {
     const key = e.target.closest('.key'); if (!key) return;
