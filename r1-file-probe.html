@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>R1 File Access Probe</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; background:#111; color:#eee;
+    font-family:monospace; width:240px; height:282px; }
+  #app { width:240px; height:282px; box-sizing:border-box; padding:4px;
+    display:flex; flex-direction:column; }
+  h1 { font-size:11px; margin:0 0 4px; color:#0f0; }
+  .btn { background:#222; border:1px solid #0a0; color:#0f0; font-family:monospace;
+    font-size:10px; padding:5px 4px; margin:2px 0; text-align:center; border-radius:3px;
+    -webkit-user-select:none; user-select:none; }
+  .btn.pressed { background:#0a0; color:#000; }
+  .row { display:flex; gap:3px; }
+  .row .btn { flex:1; }
+  /* keep file inputs reachable but visually minimal */
+  input[type=file] { font-size:9px; color:#888; width:100%; margin:1px 0; }
+  #log { flex:1; margin-top:4px; background:#000; color:#0f0; font-size:9px;
+    line-height:1.25; padding:3px; overflow:auto; border:1px solid #050; }
+  .ok { color:#0f0; } .warn { color:#fd0; } .err { color:#f55; } .info { color:#6cf; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>R1 FILE ACCESS PROBE</h1>
+
+  <div class="row">
+    <div class="btn" id="b-env">ENV</div>
+    <div class="btn" id="b-fsapi">FS API</div>
+    <div class="btn" id="b-clear">CLR</div>
+  </div>
+
+  <!-- Vector 1: generic file input (any type) -->
+  <input type="file" id="f-any">
+  <!-- Vector 2: image-restricted -->
+  <input type="file" id="f-img" accept="image/*">
+  <!-- Vector 3: audio-restricted -->
+  <input type="file" id="f-aud" accept="audio/*">
+  <!-- Vector 4: directory listing -->
+  <input type="file" id="f-dir" webkitdirectory directory multiple>
+
+  <div id="log"></div>
+</div>
+
+<script>
+(function () {
+  var logEl = document.getElementById('log');
+  function log(msg, cls) {
+    var d = document.createElement('div');
+    d.className = cls || 'info';
+    var t = new Date().toISOString().slice(11, 19);
+    d.textContent = '[' + t + '] ' + msg;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function isR1Device() {
+    return !!(window.PluginMessageHandler || window.creationStorage || window.creationSensors);
+  }
+
+  // ---- ENV report -------------------------------------------------------
+  function reportEnv() {
+    log('--- ENV ---', 'warn');
+    log('isR1Device: ' + isR1Device(), isR1Device() ? 'ok' : 'warn');
+    log('UA: ' + navigator.userAgent.slice(0, 60), 'info');
+    log('secureContext: ' + window.isSecureContext, window.isSecureContext ? 'ok' : 'err');
+    log('showOpenFilePicker: ' + (typeof window.showOpenFilePicker), 'info');
+    log('showDirectoryPicker: ' + (typeof window.showDirectoryPicker), 'info');
+    log('FileReader: ' + (typeof window.FileReader), 'info');
+    log('SDK bridges present:', 'warn');
+    ['PluginMessageHandler','CreationVoiceHandler','TouchEventHandler',
+     'FlutterButtonHandler','closeWebView','creationStorage','creationSensors']
+      .forEach(function (k) { log('  ' + k + ': ' + (!!window[k]), window[k] ? 'ok' : 'err'); });
+  }
+
+  // ---- File System Access API probe ------------------------------------
+  async function probeFsApi() {
+    log('--- FS Access API ---', 'warn');
+    if (typeof window.showOpenFilePicker !== 'function') {
+      log('showOpenFilePicker NOT available', 'err');
+      return;
+    }
+    try {
+      log('calling showOpenFilePicker()...', 'info');
+      var handles = await window.showOpenFilePicker({ multiple: false });
+      log('returned ' + handles.length + ' handle(s)', 'ok');
+      for (var i = 0; i < handles.length; i++) {
+        var file = await handles[i].getFile();
+        log('  ' + file.name + ' (' + file.size + 'b, ' + (file.type || '?') + ')', 'ok');
+      }
+    } catch (e) {
+      log('FS API threw: ' + (e && e.name) + ' / ' + (e && e.message), 'err');
+    }
+  }
+
+  // ---- <input type=file> wiring ----------------------------------------
+  function wireInput(id, label) {
+    var inp = document.getElementById(id);
+    var fired = { focus:false, change:false };
+
+    // some WebViews fire focus when the chooser opens; track it as a signal
+    inp.addEventListener('focus', function () {
+      if (!fired.focus) { fired.focus = true; log(label + ': input focused (chooser may have opened)', 'info'); }
+    });
+
+    inp.addEventListener('change', function () {
+      fired.change = true;
+      var files = inp.files;
+      if (!files || files.length === 0) {
+        log(label + ': change fired but 0 files', 'warn');
+        return;
+      }
+      log(label + ': ' + files.length + ' file(s) selected', 'ok');
+      for (var i = 0; i < files.length && i < 5; i++) {
+        var f = files[i];
+        var path = f.webkitRelativePath || f.name;
+        log('  ' + path + ' (' + f.size + 'b, ' + (f.type || '?') + ')', 'ok');
+      }
+      // confirm bytes are actually readable
+      try {
+        var fr = new FileReader();
+        fr.onload = function () {
+          var len = fr.result && fr.result.byteLength;
+          log(label + ': read ' + len + ' bytes OK', 'ok');
+        };
+        fr.onerror = function () { log(label + ': FileReader error', 'err'); };
+        fr.readAsArrayBuffer(files[0]);
+      } catch (e) {
+        log(label + ': read threw ' + e.message, 'err');
+      }
+    });
+
+    // R1 touch-first: explicit tap to open. touchend primary, click fallback.
+    function open(ev) {
+      if (ev) { ev.preventDefault(); }
+      log(label + ': tapped, calling .click()', 'info');
+      // detect silent no-op: if neither focus nor change fires within 2.5s
+      fired.focus = false; fired.change = false;
+      var snap = { f: fired.focus, c: fired.change };
+      try { inp.click(); } catch (e) { log(label + ': .click() threw ' + e.message, 'err'); }
+      setTimeout(function () {
+        if (!fired.focus && !fired.change) {
+          log(label + ': NO focus/change after 2.5s -> likely no-op/stripped', 'err');
+        }
+      }, 2500);
+    }
+    return open;
+  }
+
+  // ---- button wiring (touchend + click, pressed feedback) --------------
+  function bindTap(el, handler) {
+    el.addEventListener('touchstart', function (e) { e.preventDefault(); el.classList.add('pressed'); }, { passive:false });
+    el.addEventListener('touchend', function (e) { e.preventDefault(); el.classList.remove('pressed'); handler(e); }, { passive:false });
+    el.addEventListener('click', function (e) { handler(e); }); // desktop fallback
+  }
+
+  // make whole rows act as the open-trigger for each hidden-ish input
+  var openAny = wireInput('f-any', 'ANY');
+  var openImg = wireInput('f-img', 'IMG');
+  var openAud = wireInput('f-aud', 'AUD');
+  var openDir = wireInput('f-dir', 'DIR');
+
+  // also let the native input element itself work if taps reach it
+  bindTap(document.getElementById('b-env'), reportEnv);
+  bindTap(document.getElementById('b-fsapi'), probeFsApi);
+  bindTap(document.getElementById('b-clear'), function () { logEl.innerHTML = ''; log('cleared', 'info'); });
+
+  // give the labels a tap-to-open affordance via the inputs themselves;
+  // tapping the native control should also open the picker on compliant WebViews.
+  ['f-any','f-img','f-aud','f-dir'].forEach(function (id) {
+    var inp = document.getElementById(id);
+    var fn = ({ 'f-any':openAny, 'f-img':openImg, 'f-aud':openAud, 'f-dir':openDir })[id];
+    inp.addEventListener('touchend', function () { /* native handles open; logging via listeners */ });
+    // expose a programmatic trigger too, in case native tap is swallowed
+    inp.dataset.trigger = id;
+  });
+
+  log('probe ready. tap ENV first, then each file input.', 'warn');
+  log('tap a row label? use native inputs above.', 'info');
+  reportEnv();
+})();
+</script>
+</body>
+</html>
